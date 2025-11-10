@@ -1290,6 +1290,10 @@ class AsyncEngineArgs(EngineArgs):
     """Arguments for asynchronous vLLM engine."""
     disable_log_requests: bool = False
 
+    # Add two new args to complete Milestone 1
+    use_simmulator: bool = False
+    sim_trace_path: Optional[str] = None
+
     @staticmethod
     def add_cli_args(parser: FlexibleArgumentParser,
                      async_args_only: bool = False) -> FlexibleArgumentParser:
@@ -1298,6 +1302,14 @@ class AsyncEngineArgs(EngineArgs):
         parser.add_argument('--disable-log-requests',
                             action='store_true',
                             help='Disable logging requests.')
+        # Simulator related args
+        parser.add_argument('--use-simulator',
+                            action='store_true',
+                            help='Use trace-driven simulator to bypass real model execution.')
+        parser.add_argument('--sim-trace-path',
+                            type=str,
+                            default=None,
+                            help='Path to trace file (e.g. JSONL) used by the simulator.')
         return parser
 
 

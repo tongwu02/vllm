@@ -62,11 +62,17 @@ class MQLLMEngine:
                  use_async_sockets: bool,
                  *args,
                  log_requests: bool = True,
+                 use_simulator: bool = False,  # For Milestone 1
+                 sim_trace_path: Optional[str] = None,  # For Milestone 1
                  **kwargs) -> None:
         # For MQLLMEngine, we can use cached outputs, since each new request
         # output is immediately pickled and send over the socket, which frees
         # the python object to be reused again.
         kwargs['use_cached_outputs'] = True
+
+        # Pass simulator args to LLMEngine for Milestone 1
+        kwargs['use_simulator'] = use_simulator
+        kwargs['sim_trace_path'] = sim_trace_path
 
         self.engine = LLMEngine(*args, **kwargs)
         self.log_requests = log_requests
@@ -116,13 +122,19 @@ class MQLLMEngine:
 
         use_async_sockets = engine_config.model_config.use_async_output_proc
 
+        # Pull simulator args from AsyncEngineArgs for Milestone 1
+        use_simulator = getattr(engine_args, 'use_simulator', False)
+        sim_trace_path = getattr(engine_args, 'sim_trace_path', None)
+
         return cls(ipc_path=ipc_path,
                    use_async_sockets=use_async_sockets,
                    vllm_config=engine_config,
                    executor_class=executor_class,
                    log_requests=not engine_args.disable_log_requests,
                    log_stats=not engine_args.disable_log_stats,
-                   usage_context=usage_context)
+                   usage_context=usage_context,
+                   use_simulator=use_simulator,  # For Milestone 1
+                   sim_trace_path=sim_trace_path)  # For Milestone 1
 
     def start(self):
         try:

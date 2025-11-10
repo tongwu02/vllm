@@ -61,6 +61,8 @@ from vllm.usage.usage_lib import (UsageContext, is_usage_stats_enabled,
 from vllm.utils import Counter, Device, deprecate_kwargs, weak_bind
 from vllm.version import __version__ as VLLM_VERSION
 
+from vllm.sim.simulator import Simulator  # For Milestone 1
+
 logger = init_logger(__name__)
 _LOCAL_LOGGING_INTERVAL_SEC = 5
 
@@ -214,6 +216,8 @@ class LLMEngine:
         input_registry: InputRegistry = INPUT_REGISTRY,
         mm_registry: MultiModalRegistry = MULTIMODAL_REGISTRY,
         use_cached_outputs: bool = False,
+        use_simulator: bool = False,  # For Milestone 1
+        sim_trace_path: Optional[str] = None,  # For Milestone 1
     ) -> None:
 
         self.vllm_config = vllm_config
@@ -405,6 +409,21 @@ class LLMEngine:
 
         self.seq_id_to_seq_group: Dict[str, SequenceGroupBase] = {}
 
+        self.use_simulator = use_simulator  # For Milestone 1
+        self.sim_trace_path = sim_trace_path  # For Milestone 1
+
+        self.simulator = None
+        if self.use_simulator:
+            if Simulator is None:
+                raise ImportError(
+                    "Simulator is not available. Please make sure you have "
+                    "the simulator module.")
+            
+            tokenizer = getattr(self, "tokenizer", None)
+            self.simulator = Simulator(trace_path=self.sim_trace_path,
+                                       tokenizer=tokenizer)
+
+
     def _initialize_kv_caches(self) -> None:
         """Initialize the KV cache in the worker(s).
 
@@ -520,6 +539,8 @@ class LLMEngine:
             log_stats=not engine_args.disable_log_stats,
             usage_context=usage_context,
             stat_loggers=stat_loggers,
+            use_simulator=getattr(engine_args, "use_simulator", False),  # For Milestone 1
+            sim_trace_path=getattr(engine_args, "sim_trace_path", None),  # For Milestone 1
         )
 
         return engine
@@ -778,6 +799,12 @@ class LLMEngine:
             self._validate_token_prompt(
                 prompt,
                 tokenizer=self.get_tokenizer(lora_request=lora_request))
+        
+        # Inform the simulator about the new request
+        if self.use_simulator and self.simulator is not None:
+            self.simulator.on_add_request(request_id=request_id,
+                                          prompt=prompt,
+                                          params=params)
 
         preprocessed_inputs = self.input_preprocessor.preprocess(
             prompt,
@@ -1361,6 +1388,31 @@ class LLMEngine:
 
         assert seq_group_metadata_list is not None
         assert scheduler_outputs is not None
+
+        if self.use_simulator and self.simulator is not None:
+            # Split the scheduling results into prefill and decode parts
+            scheduled = scheduler_outputs.scheduled_seq_groups
+            num_prefill = scheduler_outputs.num_prefill_groups
+            prompt_run = scheduled[:num_prefill]
+            decode_run = scheduled[num_prefill:]
+
+            if prompt_run:
+                self.simulator.simulate_prefill(prompt_run)
+
+            sim_outputs: List[RequestOutput] = self.simulator.simulate_decode(decode_run)
+
+            # Trigger the incremental callback, consistent with the real path
+            if self.process_request_outputs_callback is not None:
+                self.process_request_outputs_callback(sim_outputs)
+
+            # Populate the output for this round, maintaining the contract
+            ctx.request_outputs = sim_outputs
+
+            # Free finished sequence groups, trying to align with the real path behavior
+            for scheduler in self.scheduler:
+                scheduler.free_finished_seq_groups()
+
+            return ctx.request_outputs
 
         if not scheduler_outputs.is_empty():
 
