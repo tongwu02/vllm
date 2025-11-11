@@ -1291,7 +1291,7 @@ class AsyncEngineArgs(EngineArgs):
     disable_log_requests: bool = False
 
     # Add two new args to complete Milestone 1
-    use_simmulator: bool = False
+    use_simulator: bool = False
     sim_trace_path: Optional[str] = None
 
     @staticmethod
