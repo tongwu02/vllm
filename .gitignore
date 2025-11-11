@@ -203,3 +203,12 @@ benchmarks/*.json
 # Linting
 actionlint
 shellcheck*/
+# Large data files - Milestone 2
+*.jsonl
+!vllm/sim/trace.jsonl
+!examples/openai_example_batch.jsonl
+*.pdf
+milestone2_results/
+milestone2_test_results/
+vllm/ShareGPTData.jsonl
+project.pdf
