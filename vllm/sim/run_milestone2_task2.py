@@ -1,11 +1,18 @@
 """
-Milestone 2 Task 2: Replay ShareGPT trace and measure prefix sharing
+Milestone 2 Complete Pipeline
 
-This script:
-1. Loads ShareGPT data
-2. Generates single-turn and multi-turn traces
-3. Simulates the serving process with prefix sharing
-4. Collects and visualizes metrics
+This script runs the complete Milestone 2 workflow:
+1. Generate single-turn and multi-turn traces (Task 1)
+2. Run experiments with vLLM real block manager (Task 2)
+3. Collect metrics and visualize results
+
+Usage:
+    python vllm/sim/run_milestone2_task2.py \
+        --data-path vllm/ShareGPTData.jsonl \
+        --max-conversations 100 \
+        --output-dir milestone2_results \
+        --model facebook/opt-125m \
+        --block-size 16
 """
 
 import argparse
@@ -13,20 +20,19 @@ import json
 import logging
 import os
 import sys
+import subprocess
 from pathlib import Path
+from typing import Dict, Any, List
 
 # Add vllm to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+VLLM_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(VLLM_ROOT))
 
-from client_simulator import (
+from sim.client_simulator import (
     ShareGPTLoader,
     ChatTemplateFormatter,
     RequestGenerator,
     create_trace_file_for_simulator
-)
-from prefix_sharing_metrics import (
-    PrefixSharingMetricsCollector,
-    MockBlockManagerMetricsIntegration
 )
 
 logging.basicConfig(
@@ -36,388 +42,475 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class ToyTokenizer:
-    """Simple tokenizer for testing."""
-    def encode(self, text: str, add_special_tokens: bool = False):
-        # Simple character-based tokenization
-        return [ord(c) for c in text]
-
-    def decode(self, ids, skip_special_tokens: bool = True):
-        return "".join(chr(i) if i < 128 else '?' for i in ids)
-
-
-def run_simulation(
-    traces,
-    mode: str,
+def generate_traces(
+    data_path: str,
     output_dir: str,
-    block_size: int = 16
-):
+    max_conversations: int,
+    model_name: str,
+    arrival_rate: float = 2.0,
+) -> Dict[str, str]:
     """
-    Run the simulation with prefix sharing metrics collection.
+    Generate single-turn and multi-turn traces.
 
-    Args:
-        traces: List of RequestTrace objects
-        mode: 'single' or 'multi' turn
-        output_dir: Directory to save results
-        block_size: Block size for KV cache
+    Returns:
+        Dictionary with paths to generated trace files
     """
-    logger.info(f"Running {mode}-turn simulation with {len(traces)} requests")
+    logger.info("\n" + "="*60)
+    logger.info("STEP 1: Generating Traces (Task 1)")
+    logger.info("="*60)
 
-    # Initialize metrics collector
-    metrics_collector = PrefixSharingMetricsCollector()
-    block_manager = MockBlockManagerMetricsIntegration(
-        metrics_collector,
-        block_size=block_size
-    )
-
-    # Simple tokenizer
-    tokenizer = ToyTokenizer()
-
-    # Simulate each request
-    for i, trace in enumerate(traces):
-        if i % 100 == 0:
-            logger.info(f"Processing request {i}/{len(traces)}")
-
-        # Tokenize the prompt
-        prompt_tokens = tokenizer.encode(trace.prompt)
-
-        # Allocate blocks (this will detect sharing)
-        total_blocks, shared_blocks, shared_tokens = \
-            block_manager.allocate_blocks_for_request(
-                trace.request_id,
-                prompt_tokens
-            )
-
-        # Record completion metrics
-        metrics_collector.on_request_complete(
-            trace.request_id,
-            total_prompt_tokens=len(prompt_tokens),
-            shared_prefix_tokens=shared_tokens
-        )
-
-    # Get statistics
-    stats = metrics_collector.get_statistics()
-
-    # Print summary
-    metrics_collector.print_summary()
-
-    # Save results
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save JSON stats
-    stats_file = os.path.join(output_dir, f"{mode}_turn_stats.json")
-    metrics_collector.save_to_json(stats_file)
+    # Load ShareGPT data
+    logger.info(f"Loading ShareGPT data from {data_path}...")
+    loader = ShareGPTLoader(trace_path=data_path, max_conversations=max_conversations)
+    conversations = loader.conversations
+    logger.info(f"✅ Loaded {len(conversations)} conversations")
 
-    # Save detailed CSV for analysis
-    save_detailed_metrics(metrics_collector, mode, output_dir)
+    # Format with chat template
+    logger.info(f"Formatting with chat template for {model_name}...")
+
+    # Load tokenizer for chat template
+    try:
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        formatter = ChatTemplateFormatter(tokenizer=tokenizer, model_name=model_name)
+    except Exception as e:
+        logger.warning(f"Could not load tokenizer: {e}, using simple format")
+        formatter = ChatTemplateFormatter(model_name=model_name)
+
+    # Format each conversation
+    formatted_convs = []
+    for conv in conversations:
+        formatted_prompt = formatter.format_conversation(conv.turns)
+        formatted_convs.append({
+            'conversation_id': conv.conversation_id,
+            'turns': conv.turns,
+            'formatted_prompt': formatted_prompt,
+        })
+
+    logger.info(f"✅ Formatted {len(formatted_convs)} conversations")
+
+    # Generate traces
+    logger.info("Generating traces with Poisson arrival...")
+    generator = RequestGenerator(
+        conversations=conversations,
+        arrival_rate=arrival_rate,
+        use_poisson=True,
+        seed=42
+    )
+
+    # Single-turn trace
+    single_trace_path = os.path.join(output_dir, "single_turn_trace.jsonl")
+    logger.info(f"Generating single-turn trace: {single_trace_path}")
+    single_traces = generator.generate_single_turn_traces(formatter)
+    create_trace_file_for_simulator(single_traces, single_trace_path)
+    logger.info(f"✅ Generated {len(single_traces)} single-turn requests")
+
+    # Multi-turn trace
+    multi_trace_path = os.path.join(output_dir, "multi_turn_trace.jsonl")
+    logger.info(f"Generating multi-turn trace: {multi_trace_path}")
+    multi_traces = generator.generate_multi_turn_traces(formatter)
+    create_trace_file_for_simulator(multi_traces, multi_trace_path)
+    logger.info(f"✅ Generated {len(multi_traces)} multi-turn requests")
+
+    logger.info("\n✅ Trace generation complete!")
+
+    return {
+        'single_turn': single_trace_path,
+        'multi_turn': multi_trace_path,
+    }
+
+
+def run_experiment(
+    trace_file: str,
+    model_name: str,
+    block_size: int,
+    output_file: str,
+    no_prefix_caching: bool = False,
+) -> Dict[str, Any]:
+    """
+    Run experiment using run_milestone2_correct_approach.py
+
+    Returns:
+        Statistics dictionary
+    """
+    script_path = VLLM_ROOT / "sim" / "run_milestone2_correct_approach.py"
+
+    cmd = [
+        sys.executable,
+        str(script_path),
+        "--trace-file", trace_file,
+        "--model", model_name,
+        "--block-size", str(block_size),
+        "--output-file", output_file,
+    ]
+
+    if no_prefix_caching:
+        cmd.append("--no-prefix-caching")
+
+    logger.info(f"Running: {' '.join(cmd)}")
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        logger.error(f"Experiment failed!")
+        logger.error(f"STDOUT:\n{result.stdout}")
+        logger.error(f"STDERR:\n{result.stderr}")
+        raise RuntimeError("Experiment failed")
+
+    # Print the output (which contains the summary)
+    print(result.stdout)
+
+    # Load and return stats
+    with open(output_file, 'r') as f:
+        stats = json.load(f)
 
     return stats
 
 
-def save_detailed_metrics(
-    metrics_collector: PrefixSharingMetricsCollector,
-    mode: str,
-    output_dir: str
+def visualize_results(
+    multi_stats: Dict[str, Any],
+    single_stats: Dict[str, Any],
+    output_dir: str,
 ):
-    """Save detailed metrics to CSV files for further analysis."""
-    import csv
-
-    # Save per-request metrics
-    request_csv = os.path.join(output_dir, f"{mode}_turn_request_metrics.csv")
-    with open(request_csv, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            'request_id',
-            'total_tokens',
-            'shared_tokens',
-            'sharing_fraction',
-            'blocks_accessed',
-            'blocks_reused'
-        ])
-
-        for req_id, metrics in metrics_collector.request_metrics.items():
-            sharing_fraction = (
-                metrics.shared_tokens / metrics.total_tokens
-                if metrics.total_tokens > 0 else 0
-            )
-            writer.writerow([
-                req_id,
-                metrics.total_tokens,
-                metrics.shared_tokens,
-                sharing_fraction,
-                metrics.num_blocks_accessed,
-                metrics.num_blocks_reused
-            ])
-
-    # Save block metrics
-    block_csv = os.path.join(output_dir, f"{mode}_turn_block_metrics.csv")
-    with open(block_csv, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            'block_id',
-            'hit_count',
-            'first_access_time',
-            'last_access_time',
-            'avg_reuse_gap'
-        ])
-
-        for block_id, block_info in metrics_collector.block_info.items():
-            avg_gap = (
-                sum(block_info.reuse_gaps) / len(block_info.reuse_gaps)
-                if block_info.reuse_gaps else 0
-            )
-            writer.writerow([
-                block_id,
-                block_info.access_count,
-                block_info.first_access_time,
-                block_info.last_access_time,
-                avg_gap
-            ])
-
-    logger.info(f"Saved detailed metrics to {output_dir}")
-
-
-def visualize_results(stats_single, stats_multi, output_dir: str):
     """
-    Create visualizations of the results.
-
-    Args:
-        stats_single: Statistics from single-turn run
-        stats_multi: Statistics from multi-turn run
-        output_dir: Directory to save plots
+    Create visualization comparing multi-turn vs single-turn
     """
+    logger.info("\n" + "="*60)
+    logger.info("STEP 3: Visualizing Results")
+    logger.info("="*60)
+
     try:
         import matplotlib.pyplot as plt
         import numpy as np
     except ImportError:
-        logger.warning("matplotlib not installed, skipping visualization")
+        logger.warning("matplotlib not available, skipping visualization")
         return
 
-    os.makedirs(output_dir, exist_ok=True)
+    # Create figure with subplots
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle('Milestone 2: Prefix Sharing Effectiveness\n(vLLM Real Block Manager)',
+                 fontsize=16, fontweight='bold')
 
-    # 1. CDF of sharing fractions
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-    for idx, (stats, label) in enumerate([
-        (stats_single, 'Single-turn'),
-        (stats_multi, 'Multi-turn')
-    ]):
-        fractions = sorted(stats['sharing_fraction']['distribution'])
-        if not fractions:
-            continue
-
-        y = np.arange(1, len(fractions) + 1) / len(fractions)
-        axes[idx].plot(fractions, y, linewidth=2)
-        axes[idx].set_xlabel('Sharing Fraction')
-        axes[idx].set_ylabel('CDF')
-        axes[idx].set_title(f'{label}: Sharing Fraction CDF')
-        axes[idx].grid(True, alpha=0.3)
-        axes[idx].set_xlim([0, 1])
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'sharing_fraction_cdf.png'), dpi=150)
-    plt.close()
-
-    # 2. Block hit count distribution
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-    for idx, (stats, label) in enumerate([
-        (stats_single, 'Single-turn'),
-        (stats_multi, 'Multi-turn')
-    ]):
-        hit_counts = stats['block_hits']['distribution']
-        if not hit_counts:
-            continue
-
-        axes[idx].hist(hit_counts, bins=50, edgecolor='black', alpha=0.7)
-        axes[idx].set_xlabel('Hit Count')
-        axes[idx].set_ylabel('Number of Blocks')
-        axes[idx].set_title(f'{label}: Block Hit Count Distribution')
-        axes[idx].set_yscale('log')
-        axes[idx].grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'block_hit_distribution.png'), dpi=150)
-    plt.close()
-
-    # 3. Reuse gap distribution
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-    for idx, (stats, label) in enumerate([
-        (stats_single, 'Single-turn'),
-        (stats_multi, 'Multi-turn')
-    ]):
-        gaps = sorted(stats['reuse_gaps']['distribution'])
-        if not gaps:
-            continue
-
-        y = np.arange(1, len(gaps) + 1) / len(gaps)
-        axes[idx].plot(gaps, y, linewidth=2)
-        axes[idx].set_xlabel('Reuse Gap (seconds)')
-        axes[idx].set_ylabel('CDF')
-        axes[idx].set_title(f'{label}: Reuse Gap CDF')
-        axes[idx].grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'reuse_gap_cdf.png'), dpi=150)
-    plt.close()
-
-    # 4. Comparison bar chart
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    metrics = ['Mean Sharing\nFraction', 'Median Block\nHit Count', 'Block Reuse\nRate']
-    single_vals = [
-        stats_single['sharing_fraction']['mean'],
-        stats_single['block_hits']['median'],
-        stats_single['total_blocks_reused'] /
-            (stats_single['total_blocks_allocated'] + stats_single['total_blocks_reused'])
-            if stats_single['total_blocks_allocated'] > 0 else 0
+    # 1. Overall Sharing Fraction comparison
+    ax1 = axes[0, 0]
+    categories = ['Multi-turn', 'Single-turn']
+    sharing_fractions = [
+        multi_stats['overall_sharing_fraction'] * 100,
+        single_stats['overall_sharing_fraction'] * 100,
     ]
-    multi_vals = [
-        stats_multi['sharing_fraction']['mean'],
-        stats_multi['block_hits']['median'],
-        stats_multi['total_blocks_reused'] /
-            (stats_multi['total_blocks_allocated'] + stats_multi['total_blocks_reused'])
-            if stats_multi['total_blocks_allocated'] > 0 else 0
-    ]
+    colors = ['#2ecc71', '#e74c3c']
+    bars1 = ax1.bar(categories, sharing_fractions, color=colors, alpha=0.7, edgecolor='black')
+    ax1.set_ylabel('Sharing Fraction (%)', fontsize=12)
+    ax1.set_title('Overall Block Reuse Rate', fontsize=13, fontweight='bold')
+    ax1.set_ylim(0, max(sharing_fractions) * 1.2)
 
-    x = np.arange(len(metrics))
+    # Add value labels on bars
+    for bar, val in zip(bars1, sharing_fractions):
+        height = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2., height,
+                f'{val:.1f}%',
+                ha='center', va='bottom', fontsize=11, fontweight='bold')
+
+    ax1.grid(axis='y', alpha=0.3)
+
+    # 2. Cache Hit Rate comparison
+    ax2 = axes[0, 1]
+    cache_hit_rates = [
+        multi_stats['final_cache_hit_rate'] * 100,
+        single_stats['final_cache_hit_rate'] * 100,
+    ]
+    bars2 = ax2.bar(categories, cache_hit_rates, color=colors, alpha=0.7, edgecolor='black')
+    ax2.set_ylabel('Cache Hit Rate (%)', fontsize=12)
+    ax2.set_title('vLLM Cache Hit Rate', fontsize=13, fontweight='bold')
+    ax2.set_ylim(0, max(cache_hit_rates) * 1.2 if max(cache_hit_rates) > 0 else 10)
+
+    for bar, val in zip(bars2, cache_hit_rates):
+        height = bar.get_height()
+        ax2.text(bar.get_x() + bar.get_width()/2., height,
+                f'{val:.2f}%',
+                ha='center', va='bottom', fontsize=11, fontweight='bold')
+
+    ax2.grid(axis='y', alpha=0.3)
+
+    # 3. Block allocation breakdown
+    ax3 = axes[1, 0]
+
+    multi_reused = multi_stats['total_blocks_reused']
+    multi_new = multi_stats['total_blocks_newly_allocated']
+    single_reused = single_stats['total_blocks_reused']
+    single_new = single_stats['total_blocks_newly_allocated']
+
+    x = np.arange(len(categories))
     width = 0.35
 
-    ax.bar(x - width/2, single_vals, width, label='Single-turn', alpha=0.8)
-    ax.bar(x + width/2, multi_vals, width, label='Multi-turn', alpha=0.8)
+    bars3a = ax3.bar(x, [multi_reused, single_reused], width,
+                     label='Blocks Reused', color='#3498db', alpha=0.7, edgecolor='black')
+    bars3b = ax3.bar(x, [multi_new, single_new], width,
+                     bottom=[multi_reused, single_reused],
+                     label='Blocks Newly Allocated', color='#e67e22', alpha=0.7, edgecolor='black')
 
-    ax.set_ylabel('Value')
-    ax.set_title('Single-turn vs Multi-turn Comparison')
-    ax.set_xticks(x)
-    ax.set_xticklabels(metrics)
-    ax.legend()
-    ax.grid(True, alpha=0.3, axis='y')
+    ax3.set_ylabel('Number of Blocks', fontsize=12)
+    ax3.set_title('Block Allocation Breakdown', fontsize=13, fontweight='bold')
+    ax3.set_xticks(x)
+    ax3.set_xticklabels(categories)
+    ax3.legend(loc='upper right')
+    ax3.grid(axis='y', alpha=0.3)
+
+    # Add percentage labels
+    for i, (cat, reused, new) in enumerate(zip(categories,
+                                                 [multi_reused, single_reused],
+                                                 [multi_new, single_new])):
+        total = reused + new
+        reused_pct = reused / total * 100 if total > 0 else 0
+        ax3.text(i, reused/2, f'{reused_pct:.1f}%',
+                ha='center', va='center', fontsize=10, fontweight='bold', color='white')
+
+    # 4. Per-request sharing fraction distribution
+    ax4 = axes[1, 1]
+
+    multi_per_request = [m['sharing_fraction'] * 100 for m in multi_stats['request_metrics']]
+    single_per_request = [m['sharing_fraction'] * 100 for m in single_stats['request_metrics']]
+
+    bp = ax4.boxplot([multi_per_request, single_per_request],
+                      labels=categories,
+                      patch_artist=True,
+                      showmeans=True)
+
+    for patch, color in zip(bp['boxes'], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+
+    ax4.set_ylabel('Sharing Fraction per Request (%)', fontsize=12)
+    ax4.set_title('Per-Request Sharing Distribution', fontsize=13, fontweight='bold')
+    ax4.grid(axis='y', alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'comparison.png'), dpi=150)
+
+    # Save figure
+    output_path = os.path.join(output_dir, "milestone2_comparison.png")
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    logger.info(f"✅ Saved visualization to {output_path}")
+
     plt.close()
 
-    logger.info(f"Saved visualizations to {output_dir}")
+    # Create summary comparison table
+    create_summary_table(multi_stats, single_stats, output_dir)
+
+
+def create_summary_table(
+    multi_stats: Dict[str, Any],
+    single_stats: Dict[str, Any],
+    output_dir: str,
+):
+    """
+    Create a markdown summary table
+    """
+    output_path = os.path.join(output_dir, "milestone2_summary.md")
+
+    with open(output_path, 'w') as f:
+        f.write("# Milestone 2 Results Summary\n\n")
+        f.write("## Comparison: Multi-turn vs Single-turn\n\n")
+        f.write("| Metric | Multi-turn | Single-turn | Improvement |\n")
+        f.write("|--------|-----------|------------|-------------|\n")
+
+        # Overall sharing fraction
+        multi_sharing = multi_stats['overall_sharing_fraction'] * 100
+        single_sharing = single_stats['overall_sharing_fraction'] * 100
+        improvement = multi_sharing / single_sharing if single_sharing > 0 else float('inf')
+        f.write(f"| Overall Sharing Fraction | {multi_sharing:.2f}% | {single_sharing:.2f}% | {improvement:.1f}x |\n")
+
+        # Cache hit rate
+        multi_cache = multi_stats['final_cache_hit_rate'] * 100
+        single_cache = single_stats['final_cache_hit_rate'] * 100
+        improvement = multi_cache / single_cache if single_cache > 0 else float('inf')
+        f.write(f"| Cache Hit Rate | {multi_cache:.2f}% | {single_cache:.2f}% | {improvement:.0f}x |\n")
+
+        # Blocks reused
+        multi_reused = multi_stats['total_blocks_reused']
+        single_reused = single_stats['total_blocks_reused']
+        improvement = multi_reused / single_reused if single_reused > 0 else float('inf')
+        f.write(f"| Blocks Reused | {multi_reused:,} | {single_reused:,} | {improvement:.1f}x |\n")
+
+        # Blocks newly allocated
+        multi_new = multi_stats['total_blocks_newly_allocated']
+        single_new = single_stats['total_blocks_newly_allocated']
+        f.write(f"| Blocks Newly Allocated | {multi_new:,} | {single_new:,} | - |\n")
+
+        # Total requests
+        f.write(f"| Total Requests | {multi_stats['total_requests']} | {single_stats['total_requests']} | - |\n")
+
+        # Total tokens
+        f.write(f"| Total Tokens | {multi_stats['total_tokens']:,} | {single_stats['total_tokens']:,} | - |\n")
+
+        f.write("\n## Key Findings\n\n")
+        f.write(f"1. **Multi-turn conversations benefit significantly from prefix caching**\n")
+        f.write(f"   - {multi_sharing:.1f}% of blocks are reused (vs {single_sharing:.1f}% for single-turn)\n")
+        f.write(f"   - Cache hit rate: {multi_cache:.1f}%\n\n")
+
+        f.write(f"2. **Single-turn conversations have minimal prefix sharing**\n")
+        f.write(f"   - Only {single_sharing:.1f}% of blocks are reused\n")
+        f.write(f"   - Cache hit rate: {single_cache:.2f}%\n\n")
+
+        f.write(f"3. **Multi-turn is {improvement:.0f}x more effective**\n")
+        f.write(f"   - Saves {multi_reused:,} block allocations through reuse\n")
+        f.write(f"   - Reduces memory allocation overhead significantly\n\n")
+
+        f.write("## Implementation Details\n\n")
+        f.write("- **Block Manager**: vLLM SelfAttnBlockSpaceManager (real implementation)\n")
+        f.write("- **Prefix Caching**: vLLM PrefixCachingBlockAllocator with LRU eviction\n")
+        f.write(f"- **Block Size**: 16 tokens\n")
+        f.write(f"- **Model**: facebook/opt-125m tokenizer\n")
+        f.write(f"- **Requests**: {multi_stats['total_requests']} per experiment\n")
+
+    logger.info(f"✅ Saved summary table to {output_path}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Run Milestone 2 Task 2')
+    parser = argparse.ArgumentParser(
+        description='Milestone 2 Complete Pipeline: Generate traces, run experiments, visualize results'
+    )
+
+    # Data parameters
     parser.add_argument(
         '--data-path',
         type=str,
-        default='vllm/ShareGPTData.jsonl',
-        help='Path to ShareGPT data file'
+        required=True,
+        help='Path to ShareGPT JSONL file'
     )
     parser.add_argument(
         '--max-conversations',
         type=int,
-        default=1000,
-        help='Maximum number of conversations to process'
+        default=100,
+        help='Maximum number of conversations to process (default: 100)'
     )
     parser.add_argument(
         '--output-dir',
         type=str,
         default='milestone2_results',
-        help='Output directory for results'
+        help='Output directory for results (default: milestone2_results)'
+    )
+
+    # Model parameters
+    parser.add_argument(
+        '--model',
+        type=str,
+        default='facebook/opt-125m',
+        help='Model name for tokenizer (default: facebook/opt-125m)'
     )
     parser.add_argument(
         '--block-size',
         type=int,
         default=16,
-        help='Block size for KV cache'
+        help='Block size in tokens (default: 16)'
     )
+
+    # Trace generation parameters
     parser.add_argument(
         '--arrival-rate',
         type=float,
         default=2.0,
-        help='Request arrival rate (requests/second)'
+        help='Request arrival rate (req/s) for Poisson process (default: 2.0)'
+    )
+
+    # Control flags
+    parser.add_argument(
+        '--skip-trace-generation',
+        action='store_true',
+        help='Skip trace generation (use existing traces)'
     )
     parser.add_argument(
         '--skip-visualization',
         action='store_true',
-        help='Skip visualization (if matplotlib not available)'
+        help='Skip visualization step'
     )
 
     args = parser.parse_args()
 
-    logger.info("="*60)
-    logger.info("Milestone 2 Task 2: ShareGPT Replay with Prefix Sharing")
-    logger.info("="*60)
-
-    # Load ShareGPT data
-    logger.info(f"Loading ShareGPT data from {args.data_path}")
-    loader = ShareGPTLoader(args.data_path, max_conversations=args.max_conversations)
-    conversations = loader.get_conversations()
-    logger.info(f"Loaded {len(conversations)} conversations")
-
-    # Create formatter
-    formatter = ChatTemplateFormatter()
-
-    # Create request generator
-    generator = RequestGenerator(
-        conversations,
-        arrival_rate=args.arrival_rate,
-        use_poisson=True
-    )
-
-    # Generate single-turn traces
-    logger.info("\n" + "="*60)
-    logger.info("Generating single-turn traces...")
-    logger.info("="*60)
-    single_turn_traces = generator.generate_single_turn_traces(formatter)
-
-    # Generate multi-turn traces
-    logger.info("\n" + "="*60)
-    logger.info("Generating multi-turn traces...")
-    logger.info("="*60)
-    multi_turn_traces = generator.generate_multi_turn_traces(formatter, turn_delay=1.0)
-
-    # Run simulations
-    logger.info("\n" + "="*60)
-    logger.info("Running single-turn simulation...")
-    logger.info("="*60)
-    stats_single = run_simulation(
-        single_turn_traces,
-        'single',
-        args.output_dir,
-        block_size=args.block_size
-    )
-
-    logger.info("\n" + "="*60)
-    logger.info("Running multi-turn simulation...")
-    logger.info("="*60)
-    stats_multi = run_simulation(
-        multi_turn_traces,
-        'multi',
-        args.output_dir,
-        block_size=args.block_size
-    )
-
-    # Create visualizations
-    if not args.skip_visualization:
+    try:
         logger.info("\n" + "="*60)
-        logger.info("Creating visualizations...")
+        logger.info("MILESTONE 2: COMPLETE PIPELINE")
         logger.info("="*60)
-        visualize_results(stats_single, stats_multi, args.output_dir)
+        logger.info(f"Data path: {args.data_path}")
+        logger.info(f"Output directory: {args.output_dir}")
+        logger.info(f"Model: {args.model}")
+        logger.info(f"Block size: {args.block_size}")
+        logger.info(f"Max conversations: {args.max_conversations}")
 
-    # Create trace files for use with vLLM simulator
-    logger.info("\n" + "="*60)
-    logger.info("Creating trace files for vLLM simulator...")
-    logger.info("="*60)
-    create_trace_file_for_simulator(
-        single_turn_traces,
-        os.path.join(args.output_dir, 'single_turn_trace.jsonl')
-    )
-    create_trace_file_for_simulator(
-        multi_turn_traces,
-        os.path.join(args.output_dir, 'multi_turn_trace.jsonl')
-    )
+        # Step 1: Generate traces (if not skipped)
+        if args.skip_trace_generation:
+            logger.info("\n⏭️  Skipping trace generation (using existing traces)")
+            trace_files = {
+                'single_turn': os.path.join(args.output_dir, "single_turn_trace.jsonl"),
+                'multi_turn': os.path.join(args.output_dir, "multi_turn_trace.jsonl"),
+            }
+        else:
+            trace_files = generate_traces(
+                data_path=args.data_path,
+                output_dir=args.output_dir,
+                max_conversations=args.max_conversations,
+                model_name=args.model,
+                arrival_rate=args.arrival_rate,
+            )
 
-    logger.info("\n" + "="*60)
-    logger.info("DONE!")
-    logger.info("="*60)
-    logger.info(f"Results saved to: {args.output_dir}")
+        # Step 2: Run experiments
+        logger.info("\n" + "="*60)
+        logger.info("STEP 2: Running Experiments (Task 2)")
+        logger.info("="*60)
+
+        # Multi-turn experiment
+        logger.info("\n📊 Running multi-turn experiment...")
+        multi_output = os.path.join(args.output_dir, "milestone2_multi_stats.json")
+        multi_stats = run_experiment(
+            trace_file=trace_files['multi_turn'],
+            model_name=args.model,
+            block_size=args.block_size,
+            output_file=multi_output,
+            no_prefix_caching=False,
+        )
+        logger.info("✅ Multi-turn experiment complete")
+
+        # Single-turn experiment
+        logger.info("\n📊 Running single-turn experiment...")
+        single_output = os.path.join(args.output_dir, "milestone2_single_stats.json")
+        single_stats = run_experiment(
+            trace_file=trace_files['single_turn'],
+            model_name=args.model,
+            block_size=args.block_size,
+            output_file=single_output,
+            no_prefix_caching=False,
+        )
+        logger.info("✅ Single-turn experiment complete")
+
+        # Step 3: Visualize results
+        if not args.skip_visualization:
+            visualize_results(multi_stats, single_stats, args.output_dir)
+        else:
+            logger.info("\n⏭️  Skipping visualization")
+
+        # Final summary
+        logger.info("\n" + "="*60)
+        logger.info("🎉 MILESTONE 2 COMPLETE!")
+        logger.info("="*60)
+        logger.info(f"\n📁 Results saved to: {args.output_dir}/")
+        logger.info(f"  - Traces: {trace_files['multi_turn']}, {trace_files['single_turn']}")
+        logger.info(f"  - Stats: {multi_output}, {single_output}")
+        if not args.skip_visualization:
+            logger.info(f"  - Visualization: {args.output_dir}/milestone2_comparison.png")
+            logger.info(f"  - Summary: {args.output_dir}/milestone2_summary.md")
+
+        logger.info(f"\n✨ Key Result: Multi-turn achieves {multi_stats['overall_sharing_fraction']*100:.1f}% sharing fraction")
+        logger.info(f"   vs Single-turn {single_stats['overall_sharing_fraction']*100:.1f}% sharing fraction")
+        logger.info(f"   ({multi_stats['overall_sharing_fraction']/single_stats['overall_sharing_fraction']:.1f}x improvement!)")
+
+    except Exception as e:
+        logger.error(f"\n❌ Error: {e}", exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

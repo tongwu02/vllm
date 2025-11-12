@@ -17,7 +17,7 @@
       "sharing_fraction": 0.3333333333333333,
       "cache_hit_rate_global": 0.0,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.004001140594482422
+      "timestamp": 0.003953218460083008
     },
     {
       "request_id": "request_1",
@@ -28,7 +28,7 @@
       "sharing_fraction": 0.13636363636363635,
       "cache_hit_rate_global": 0.08695652173913043,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.005355119705200195
+      "timestamp": 0.005338191986083984
     },
     {
       "request_id": "request_2",
@@ -39,7 +39,7 @@
       "sharing_fraction": 0.5,
       "cache_hit_rate_global": 0.3484848484848485,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.007601022720336914
+      "timestamp": 0.007662057876586914
     },
     {
       "request_id": "request_3",
@@ -50,7 +50,7 @@
       "sharing_fraction": 0.676923076923077,
       "cache_hit_rate_global": 0.5076923076923077,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.010629892349243164
+      "timestamp": 0.010523319244384766
     },
     {
       "request_id": "request_4",
@@ -61,7 +61,7 @@
       "sharing_fraction": 0.7738095238095238,
       "cache_hit_rate_global": 0.6103286384976526,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.014211893081665039
+      "timestamp": 0.014277219772338867
     },
     {
       "request_id": "request_5",
@@ -72,7 +72,7 @@
       "sharing_fraction": 0.8,
       "cache_hit_rate_global": 0.6719242902208202,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.01866602897644043
+      "timestamp": 0.018638134002685547
     },
     {
       "request_id": "request_6",
@@ -83,7 +83,7 @@
       "sharing_fraction": 0.5,
       "cache_hit_rate_global": 0.6698113207547169,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.019324064254760742
+      "timestamp": 0.019256114959716797
     },
     {
       "request_id": "request_7",
@@ -94,7 +94,7 @@
       "sharing_fraction": 0.0,
       "cache_hit_rate_global": 0.6614906832298136,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.019613981246948242
+      "timestamp": 0.0195310115814209
     },
     {
       "request_id": "request_8",
@@ -105,7 +105,7 @@
       "sharing_fraction": 0.0,
       "cache_hit_rate_global": 0.6474164133738601,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.020028114318847656
+      "timestamp": 0.01992011070251465
     },
     {
       "request_id": "request_9",
@@ -116,7 +116,7 @@
       "sharing_fraction": 0.5,
       "cache_hit_rate_global": 0.6395348837209303,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.02073502540588379
+      "timestamp": 0.020594358444213867
     },
     {
       "request_id": "request_10",
@@ -127,7 +127,7 @@
       "sharing_fraction": 0.47058823529411764,
       "cache_hit_rate_global": 0.623342175066313,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.022181034088134766
+      "timestamp": 0.022015094757080078
     },
     {
       "request_id": "request_11",
@@ -138,7 +138,7 @@
       "sharing_fraction": 0.6071428571428571,
       "cache_hit_rate_global": 0.6203703703703702,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.02437615394592285
+      "timestamp": 0.024189233779907227
     },
     {
       "request_id": "request_12",
@@ -149,7 +149,7 @@
       "sharing_fraction": 0.7,
       "cache_hit_rate_global": 0.6320939334637965,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.027465105056762695
+      "timestamp": 0.027191162109375
     },
     {
       "request_id": "request_13",
@@ -160,7 +160,7 @@
       "sharing_fraction": 0.6837606837606838,
       "cache_hit_rate_global": 0.6411483253588517,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.032096147537231445
+      "timestamp": 0.0316312313079834
     },
     {
       "request_id": "request_14",
@@ -171,7 +171,7 @@
       "sharing_fraction": 1.0,
       "cache_hit_rate_global": 0.6411483253588517,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.0328221321105957
+      "timestamp": 0.032317161560058594
     },
     {
       "request_id": "request_15",
@@ -182,7 +182,7 @@
       "sharing_fraction": 0.029411764705882353,
       "cache_hit_rate_global": 0.6090909090909091,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.03435206413269043
+      "timestamp": 0.033762216567993164
     },
     {
       "request_id": "request_16",
@@ -193,7 +193,7 @@
       "sharing_fraction": 0.4857142857142857,
       "cache_hit_rate_global": 0.5967078189300411,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.037138938903808594
+      "timestamp": 0.036498308181762695
     },
     {
       "request_id": "request_17",
@@ -204,7 +204,7 @@
       "sharing_fraction": 1.0,
       "cache_hit_rate_global": 0.5967078189300411,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.03754925727844238
+      "timestamp": 0.03690028190612793
     },
     {
       "request_id": "request_18",
@@ -215,7 +215,7 @@
       "sharing_fraction": 0.0,
       "cache_hit_rate_global": 0.558408215661104,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.03990006446838379
+      "timestamp": 0.03916215896606445
     },
     {
       "request_id": "request_19",
@@ -226,7 +226,7 @@
       "sharing_fraction": 0.041666666666666664,
       "cache_hit_rate_global": 0.5423940149625935,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.04108715057373047
+      "timestamp": 0.04033923149108887
     },
     {
       "request_id": "request_20",
@@ -237,7 +237,7 @@
       "sharing_fraction": 0.5,
       "cache_hit_rate_global": 0.5417185554171855,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.0414280891418457
+      "timestamp": 0.0406641960144043
     },
     {
       "request_id": "request_21",
@@ -248,7 +248,7 @@
       "sharing_fraction": 0.13333333333333333,
       "cache_hit_rate_global": 0.5336597307221542,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.042140960693359375
+      "timestamp": 0.041373252868652344
     },
     {
       "request_id": "request_22",
@@ -259,7 +259,7 @@
       "sharing_fraction": 0.30612244897959184,
       "cache_hit_rate_global": 0.5202312138728323,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.04402017593383789
+      "timestamp": 0.04322528839111328
     },
     {
       "request_id": "request_23",
@@ -270,7 +270,7 @@
       "sharing_fraction": 0.6805555555555556,
       "cache_hit_rate_global": 0.532051282051282,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.046659231185913086
+      "timestamp": 0.04579925537109375
     },
     {
       "request_id": "request_24",
@@ -281,7 +281,7 @@
       "sharing_fraction": 0.5,
       "cache_hit_rate_global": 0.5314834578441836,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.0471959114074707
+      "timestamp": 0.04623103141784668
     },
     {
       "request_id": "request_25",
@@ -292,7 +292,7 @@
       "sharing_fraction": 0.08695652173913043,
       "cache_hit_rate_global": 0.5203336809176226,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.04844808578491211
+      "timestamp": 0.047396183013916016
     },
     {
       "request_id": "request_26",
@@ -303,7 +303,7 @@
       "sharing_fraction": 0.5111111111111111,
       "cache_hit_rate_global": 0.5194416749750749,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.050530195236206055
+      "timestamp": 0.04919600486755371
     },
     {
       "request_id": "request_27",
@@ -314,7 +314,7 @@
       "sharing_fraction": 1.0,
       "cache_hit_rate_global": 0.5194416749750749,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.050974130630493164
+      "timestamp": 0.04953336715698242
     },
     {
       "request_id": "request_28",
@@ -325,7 +325,7 @@
       "sharing_fraction": 0.05555555555555555,
       "cache_hit_rate_global": 0.5107843137254902,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.0520021915435791
+      "timestamp": 0.05050325393676758
     },
     {
       "request_id": "request_29",
@@ -336,7 +336,7 @@
       "sharing_fraction": 0.5142857142857142,
       "cache_hit_rate_global": 0.5104364326375712,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.05357813835144043
+      "timestamp": 0.05205202102661133
     },
     {
       "request_id": "request_30",
@@ -347,7 +347,7 @@
       "sharing_fraction": 0.6363636363636364,
       "cache_hit_rate_global": 0.516245487364621,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.05588507652282715
+      "timestamp": 0.05430316925048828
     },
     {
       "request_id": "request_31",
@@ -358,7 +358,7 @@
       "sharing_fraction": 0.7142857142857143,
       "cache_hit_rate_global": 0.5287162162162162,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.05902504920959473
+      "timestamp": 0.05743408203125
     },
     {
       "request_id": "request_32",
@@ -369,7 +369,7 @@
       "sharing_fraction": 0.8369565217391305,
       "cache_hit_rate_global": 0.5505882352941177,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.06321310997009277
+      "timestamp": 0.061054229736328125
     },
     {
       "request_id": "request_33",
@@ -380,7 +380,7 @@
       "sharing_fraction": 0.25,
       "cache_hit_rate_global": 0.5492957746478873,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.06464385986328125
+      "timestamp": 0.06171107292175293
     },
     {
       "request_id": "request_34",
@@ -391,7 +391,7 @@
       "sharing_fraction": 0.0851063829787234,
       "cache_hit_rate_global": 0.5324773413897281,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.06877398490905762
+      "timestamp": 0.06421208381652832
     },
     {
       "request_id": "request_35",
@@ -402,7 +402,7 @@
       "sharing_fraction": 0.0,
       "cache_hit_rate_global": 0.5320754716981133,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.06968307495117188
+      "timestamp": 0.0645902156829834
     },
     {
       "request_id": "request_36",
@@ -413,7 +413,7 @@
       "sharing_fraction": 0.11764705882352941,
       "cache_hit_rate_global": 0.5264727815063386,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.07054591178894043
+      "timestamp": 0.06537127494812012
     },
     {
       "request_id": "request_37",
@@ -424,7 +424,7 @@
       "sharing_fraction": 0.4857142857142857,
       "cache_hit_rate_global": 0.525090909090909,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.0719602108001709
+      "timestamp": 0.06674408912658691
     },
     {
       "request_id": "request_38",
@@ -435,7 +435,7 @@
       "sharing_fraction": 0.625,
       "cache_hit_rate_global": 0.5286713286713287,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.07398414611816406
+      "timestamp": 0.06870508193969727
     },
     {
       "request_id": "request_39",
@@ -446,7 +446,7 @@
       "sharing_fraction": 0.7887323943661971,
       "cache_hit_rate_global": 0.5406666666666666,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.0765688419342041
+      "timestamp": 0.07119107246398926
     },
     {
       "request_id": "request_40",
@@ -457,7 +457,7 @@
       "sharing_fraction": 0.8255813953488372,
       "cache_hit_rate_global": 0.5558359621451104,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.07982802391052246
+      "timestamp": 0.07429194450378418
     },
     {
       "request_id": "request_41",
@@ -468,7 +468,7 @@
       "sharing_fraction": 0.8269230769230769,
       "cache_hit_rate_global": 0.5722748815165877,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.08369326591491699
+      "timestamp": 0.07785439491271973
     },
     {
       "request_id": "request_42",
@@ -479,7 +479,7 @@
       "sharing_fraction": 0.8,
       "cache_hit_rate_global": 0.5883324160704457,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.08922004699707031
+      "timestamp": 0.08283710479736328
     },
     {
       "request_id": "request_43",
@@ -490,7 +490,7 @@
       "sharing_fraction": 0.5,
       "cache_hit_rate_global": 0.588008800880088,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.09003400802612305
+      "timestamp": 0.0835881233215332
     },
     {
       "request_id": "request_44",
@@ -501,7 +501,7 @@
       "sharing_fraction": 0.011764705882352941,
       "cache_hit_rate_global": 0.5622700998423542,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.09297585487365723
+      "timestamp": 0.08646512031555176
     },
     {
       "request_id": "request_45",
@@ -512,7 +512,7 @@
       "sharing_fraction": 0.6825396825396826,
       "cache_hit_rate_global": 0.5695266272189349,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.09735417366027832
+      "timestamp": 0.0900111198425293
     },
     {
       "request_id": "request_46",
@@ -523,7 +523,7 @@
       "sharing_fraction": 0.9618320610687023,
       "cache_hit_rate_global": 0.5931417979610751,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.10186505317687988
+      "timestamp": 0.09368324279785156
     },
     {
       "request_id": "request_47",
@@ -534,7 +534,7 @@
       "sharing_fraction": 0.3333333333333333,
       "cache_hit_rate_global": 0.5925925925925926,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.10283613204956055
+      "timestamp": 0.0943763256072998
     },
     {
       "request_id": "request_48",
@@ -545,7 +545,7 @@
       "sharing_fraction": 0.06818181818181818,
       "cache_hit_rate_global": 0.5819337267362688,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.10488200187683105
+      "timestamp": 0.09624123573303223
     },
     {
       "request_id": "request_49",
@@ -556,7 +556,7 @@
       "sharing_fraction": 0.6666666666666666,
       "cache_hit_rate_global": 0.5842151675485009,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.10734915733337402
+      "timestamp": 0.09880924224853516
     },
     {
       "request_id": "request_50",
@@ -567,7 +567,7 @@
       "sharing_fraction": 0.7857142857142857,
       "cache_hit_rate_global": 0.591237771161208,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.11049723625183105
+      "timestamp": 0.10181927680969238
     },
     {
       "request_id": "request_51",
@@ -578,7 +578,7 @@
       "sharing_fraction": 0.8235294117647058,
       "cache_hit_rate_global": 0.6007340946166395,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.11415719985961914
+      "timestamp": 0.10534024238586426
     },
     {
       "request_id": "request_52",
@@ -589,7 +589,7 @@
       "sharing_fraction": 0.16666666666666666,
       "cache_hit_rate_global": 0.5995115995115996,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.11489701271057129
+      "timestamp": 0.1060481071472168
     },
     {
       "request_id": "request_53",
@@ -600,7 +600,7 @@
       "sharing_fraction": 0.375,
       "cache_hit_rate_global": 0.5978964401294499,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.11555004119873047
+      "timestamp": 0.1067042350769043
     },
     {
       "request_id": "request_54",
@@ -611,7 +611,7 @@
       "sharing_fraction": 0.48484848484848486,
       "cache_hit_rate_global": 0.5962460063897763,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1166999340057373
+      "timestamp": 0.10785627365112305
     },
     {
       "request_id": "request_55",
@@ -622,7 +622,7 @@
       "sharing_fraction": 0.7857142857142857,
       "cache_hit_rate_global": 0.5992141453831042,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.11843490600585938
+      "timestamp": 0.10936403274536133
     },
     {
       "request_id": "request_56",
@@ -633,7 +633,7 @@
       "sharing_fraction": 0.6461538461538462,
       "cache_hit_rate_global": 0.6002299731697969,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1210179328918457
+      "timestamp": 0.11183428764343262
     },
     {
       "request_id": "request_57",
@@ -644,7 +644,7 @@
       "sharing_fraction": 0.6565656565656566,
       "cache_hit_rate_global": 0.6021425932766901,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.12438797950744629
+      "timestamp": 0.1153402328491211
     },
     {
       "request_id": "request_58",
@@ -655,7 +655,7 @@
       "sharing_fraction": 0.908256880733945,
       "cache_hit_rate_global": 0.613854351687389,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.12794709205627441
+      "timestamp": 0.11903619766235352
     },
     {
       "request_id": "request_59",
@@ -666,7 +666,7 @@
       "sharing_fraction": 0.9159663865546218,
       "cache_hit_rate_global": 0.6259802250255712,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.13184690475463867
+      "timestamp": 0.12293028831481934
     },
     {
       "request_id": "request_60",
@@ -677,7 +677,7 @@
       "sharing_fraction": 0.9596774193548387,
       "cache_hit_rate_global": 0.6393979057591623,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1365211009979248
+      "timestamp": 0.12709403038024902
     },
     {
       "request_id": "request_61",
@@ -688,7 +688,7 @@
       "sharing_fraction": 1.0,
       "cache_hit_rate_global": 0.6393979057591623,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.13721203804016113
+      "timestamp": 0.1277141571044922
     },
     {
       "request_id": "request_62",
@@ -699,7 +699,7 @@
       "sharing_fraction": 0.0625,
       "cache_hit_rate_global": 0.6362748290459134,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1378650665283203
+      "timestamp": 0.12833309173583984
     },
     {
       "request_id": "request_63",
@@ -710,7 +710,7 @@
       "sharing_fraction": 0.36363636363636365,
       "cache_hit_rate_global": 0.632305716120745,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.14020514488220215
+      "timestamp": 0.13068699836730957
     },
     {
       "request_id": "request_64",
@@ -721,7 +721,7 @@
       "sharing_fraction": 0.7457627118644068,
       "cache_hit_rate_global": 0.6343001261034048,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1423180103302002
+      "timestamp": 0.13297319412231445
     },
     {
       "request_id": "request_65",
@@ -732,7 +732,7 @@
       "sharing_fraction": 0.6941176470588235,
       "cache_hit_rate_global": 0.6357493857493857,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.14525604248046875
+      "timestamp": 0.1359691619873047
     },
     {
       "request_id": "request_66",
@@ -743,7 +743,7 @@
       "sharing_fraction": 0.8415841584158416,
       "cache_hit_rate_global": 0.6418355184743743,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.14873504638671875
+      "timestamp": 0.13942217826843262
     },
     {
       "request_id": "request_67",
@@ -754,7 +754,7 @@
       "sharing_fraction": 0.8706896551724138,
       "cache_hit_rate_global": 0.6493805819648516,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.15324091911315918
+      "timestamp": 0.14335012435913086
     },
     {
       "request_id": "request_68",
@@ -765,7 +765,7 @@
       "sharing_fraction": 1.0,
       "cache_hit_rate_global": 0.6493805819648516,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.15391206741333008
+      "timestamp": 0.143934965133667
     },
     {
       "request_id": "request_69",
@@ -776,7 +776,7 @@
       "sharing_fraction": 0.047619047619047616,
       "cache_hit_rate_global": 0.6456602692638213,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.15482401847839355
+      "timestamp": 0.14478421211242676
     },
     {
       "request_id": "request_70",
@@ -787,7 +787,7 @@
       "sharing_fraction": 0.3088235294117647,
       "cache_hit_rate_global": 0.6391231028667791,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1572110652923584
+      "timestamp": 0.147355318069458
     },
     {
       "request_id": "request_71",
@@ -798,7 +798,7 @@
       "sharing_fraction": 0.7472527472527473,
       "cache_hit_rate_global": 0.6417214912280702,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1602790355682373
+      "timestamp": 0.15047502517700195
     },
     {
       "request_id": "request_72",
@@ -809,7 +809,7 @@
       "sharing_fraction": 0.8504672897196262,
       "cache_hit_rate_global": 0.6475759190197123,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.16371512413024902
+      "timestamp": 0.15390729904174805
     },
     {
       "request_id": "request_73",
@@ -820,7 +820,7 @@
       "sharing_fraction": 0.8991596638655462,
       "cache_hit_rate_global": 0.6552169421487604,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1675550937652588
+      "timestamp": 0.1576530933380127
     },
     {
       "request_id": "request_74",
@@ -831,7 +831,7 @@
       "sharing_fraction": 0.8814814814814815,
       "cache_hit_rate_global": 0.6627558662006989,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.17206788063049316
+      "timestamp": 0.1618802547454834
     },
     {
       "request_id": "request_75",
@@ -842,7 +842,7 @@
       "sharing_fraction": 1.0,
       "cache_hit_rate_global": 0.6627558662006989,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.172774076461792
+      "timestamp": 0.16256999969482422
     },
     {
       "request_id": "request_76",
@@ -853,7 +853,7 @@
       "sharing_fraction": 0.08333333333333333,
       "cache_hit_rate_global": 0.660941000746826,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.17330217361450195
+      "timestamp": 0.1630871295928955
     },
     {
       "request_id": "request_77",
@@ -864,7 +864,7 @@
       "sharing_fraction": 0.8571428571428571,
       "cache_hit_rate_global": 0.6615384615384616,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.17385411262512207
+      "timestamp": 0.16363120079040527
     },
     {
       "request_id": "request_78",
@@ -875,7 +875,7 @@
       "sharing_fraction": 0.25,
       "cache_hit_rate_global": 0.6610463674683859,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1741960048675537
+      "timestamp": 0.1639552116394043
     },
     {
       "request_id": "request_79",
@@ -886,7 +886,7 @@
       "sharing_fraction": 1.0,
       "cache_hit_rate_global": 0.6610463674683859,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.174299955368042
+      "timestamp": 0.16406035423278809
     },
     {
       "request_id": "request_80",
@@ -897,7 +897,7 @@
       "sharing_fraction": 0.017857142857142856,
       "cache_hit_rate_global": 0.6521526418786694,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1765599250793457
+      "timestamp": 0.16631507873535156
     },
     {
       "request_id": "request_81",
@@ -908,7 +908,7 @@
       "sharing_fraction": 0.49122807017543857,
       "cache_hit_rate_global": 0.6477029278743157,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1803121566772461
+      "timestamp": 0.17013216018676758
     },
     {
       "request_id": "request_82",
@@ -919,7 +919,7 @@
       "sharing_fraction": 0.5,
       "cache_hit_rate_global": 0.6475487862922418,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.18094897270202637
+      "timestamp": 0.17077136039733887
     },
     {
       "request_id": "request_83",
@@ -930,7 +930,7 @@
       "sharing_fraction": 0.14285714285714285,
       "cache_hit_rate_global": 0.6457888493475683,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.18178319931030273
+      "timestamp": 0.17164921760559082
     },
     {
       "request_id": "request_84",
@@ -941,7 +941,7 @@
       "sharing_fraction": 0.32558139534883723,
       "cache_hit_rate_global": 0.6424712238665728,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.18384504318237305
+      "timestamp": 0.17389798164367676
     },
     {
       "request_id": "request_85",
@@ -952,7 +952,7 @@
       "sharing_fraction": 0.8958333333333334,
       "cache_hit_rate_global": 0.6452137546468402,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1860790252685547
+      "timestamp": 0.1759023666381836
     },
     {
       "request_id": "request_86",
@@ -963,7 +963,7 @@
       "sharing_fraction": 0.64,
       "cache_hit_rate_global": 0.645043398812243,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.18978309631347656
+      "timestamp": 0.17942309379577637
     },
     {
       "request_id": "request_87",
@@ -974,7 +974,7 @@
       "sharing_fraction": 0.7425742574257426,
       "cache_hit_rate_global": 0.6471639124609201,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.1940932273864746
+      "timestamp": 0.18384528160095215
     },
     {
       "request_id": "request_88",
@@ -985,7 +985,7 @@
       "sharing_fraction": 0.25,
       "cache_hit_rate_global": 0.6467306404820353,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.19476890563964844
+      "timestamp": 0.18452024459838867
     },
     {
       "request_id": "request_89",
@@ -996,7 +996,7 @@
       "sharing_fraction": 0.09090909090909091,
       "cache_hit_rate_global": 0.6426672574213558,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.19639110565185547
+      "timestamp": 0.18620014190673828
     },
     {
       "request_id": "request_90",
@@ -1007,7 +1007,7 @@
       "sharing_fraction": 0.5,
       "cache_hit_rate_global": 0.6425249169435217,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.19669198989868164
+      "timestamp": 0.18651819229125977
     },
     {
       "request_id": "request_91",
@@ -1018,7 +1018,7 @@
       "sharing_fraction": 0.18181818181818182,
       "cache_hit_rate_global": 0.6413259668508287,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.19722819328308105
+      "timestamp": 0.18706011772155762
     },
     {
       "request_id": "request_92",
@@ -1029,7 +1029,7 @@
       "sharing_fraction": 0.5789473684210527,
       "cache_hit_rate_global": 0.6409861325115563,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.19806122779846191
+      "timestamp": 0.18795323371887207
     },
     {
       "request_id": "request_93",
@@ -1040,7 +1040,7 @@
       "sharing_fraction": 0.3877551020408163,
       "cache_hit_rate_global": 0.6382051840557613,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.19995808601379395
+      "timestamp": 0.18992114067077637
     },
     {
       "request_id": "request_94",
@@ -1051,7 +1051,7 @@
       "sharing_fraction": 0.6805555555555556,
       "cache_hit_rate_global": 0.6387816387816388,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.20305490493774414
+      "timestamp": 0.1933591365814209
     },
     {
       "request_id": "request_95",
@@ -1062,7 +1062,7 @@
       "sharing_fraction": 0.7659574468085106,
       "cache_hit_rate_global": 0.6412197686645638,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.2066340446472168
+      "timestamp": 0.19702601432800293
     },
     {
       "request_id": "request_96",
@@ -1073,7 +1073,7 @@
       "sharing_fraction": 0.7768595041322314,
       "cache_hit_rate_global": 0.6445128205128206,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.211212158203125
+      "timestamp": 0.20173907279968262
     },
     {
       "request_id": "request_97",
@@ -1084,7 +1084,7 @@
       "sharing_fraction": 0.04,
       "cache_hit_rate_global": 0.6413553786487038,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.21279597282409668
+      "timestamp": 0.20334815979003906
     },
     {
       "request_id": "request_98",
@@ -1095,7 +1095,7 @@
       "sharing_fraction": 0.5853658536585366,
       "cache_hit_rate_global": 0.6408906882591094,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.21438121795654297
+      "timestamp": 0.20499205589294434
     },
     {
       "request_id": "request_99",
@@ -1106,7 +1106,7 @@
       "sharing_fraction": 0.875,
       "cache_hit_rate_global": 0.6430719871666333,
       "alloc_status": "AllocStatus.OK",
-      "timestamp": 0.2161250114440918
+      "timestamp": 0.2067551612854004
     }
   ]
 }
