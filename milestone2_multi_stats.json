@@ -1,0 +1,24 @@
+{
+  "total_requests": 100,
+  "total_blocks_allocated": 1843,
+  "total_blocks_reused": 3237,
+  "unique_blocks": 1843,
+  "sharing_fraction": {
+    "mean": 0.4056440830836646,
+    "median": 0.47155963302752296,
+    "min": 0.0,
+    "max": 0.9606147934678194
+  },
+  "block_hits": {
+    "mean": 2.756375474769398,
+    "median": 2,
+    "min": 1,
+    "max": 9
+  },
+  "reuse_gaps": {
+    "mean": 0.002503333579326508,
+    "median": 0.0024449825286865234,
+    "min": 3.2901763916015625e-05,
+    "max": 0.05286812782287598
+  }
+}

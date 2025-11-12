@@ -1,0 +1,24 @@
+{
+  "total_requests": 100,
+  "total_blocks_allocated": 5080,
+  "total_blocks_reused": 0,
+  "unique_blocks": 5080,
+  "sharing_fraction": {
+    "mean": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "max": 0.0
+  },
+  "block_hits": {
+    "mean": 1.0,
+    "median": 1,
+    "min": 1,
+    "max": 1
+  },
+  "reuse_gaps": {
+    "mean": 0,
+    "median": 0,
+    "min": 0,
+    "max": 0
+  }
+}
