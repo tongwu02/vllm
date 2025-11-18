@@ -274,9 +274,13 @@ class LLMEngine:
         self.input_processor = input_registry.create_input_processor(
             self.model_config)
 
-        self.model_executor = executor_class(vllm_config=vllm_config, )
+        if use_simulator:
+            self.model_executor = None
+        else:
+            self.model_executor = executor_class(vllm_config=vllm_config, )
+        # self.model_executor = executor_class(vllm_config=vllm_config, )
 
-        if self.model_config.runner_type != "pooling":
+        if self.model_config.runner_type != "pooling" and not use_simulator:
             self._initialize_kv_caches()
 
         # If usage stat is enabled, collect relevant info.

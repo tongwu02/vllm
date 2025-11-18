@@ -162,6 +162,7 @@ class Platform:
         """
         Check if the current platform supports async output.
         """
+        return  # Milestone1
         raise NotImplementedError
 
     @classmethod
