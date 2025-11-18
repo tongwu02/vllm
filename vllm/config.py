@@ -1525,6 +1525,7 @@ class DeviceConfig:
             # Automated device type detection
             self.device_type = current_platform.device_type
             if not self.device_type:
+                return
                 raise RuntimeError("Failed to infer device type")
         else:
             # Device type is assigned explicitly
