@@ -13,6 +13,8 @@ from typing import Set, Type, Union, cast, overload
 import torch
 from typing_extensions import TypeVar, deprecated
 
+import os
+
 import vllm.envs as envs
 from vllm.config import (DecodingConfig, LoRAConfig, ModelConfig,
                          ObservabilityConfig, ParallelConfig, SchedulerConfig,
@@ -30,6 +32,7 @@ from vllm.entrypoints.openai.logits_processors import (
 from vllm.executor.executor_base import ExecutorBase
 from vllm.executor.gpu_executor import GPUExecutor
 from vllm.executor.ray_utils import initialize_ray_cluster
+from vllm.executor.simulator_executor import SimulatorExecutor
 from vllm.inputs import (INPUT_REGISTRY, InputRegistry, ProcessorInputs,
                          PromptType, SingletonInputsAdapter)
 from vllm.inputs.parse import is_encoder_decoder_inputs, is_token_prompt
@@ -46,10 +49,13 @@ from vllm.outputs import (PoolingRequestOutput, RequestOutput,
 from vllm.pooling_params import PoolingParams
 from vllm.prompt_adapter.request import PromptAdapterRequest
 from vllm.sampling_params import RequestOutputKind, SamplingParams
-from vllm.sequence import (ExecuteModelRequest, ParallelSampleSequenceGroup,
+from vllm.sequence import (CompletionSequenceGroupOutput, ExecuteModelRequest,
+                           Logprob,
+                           ParallelSampleSequenceGroup,
                            PoolingSequenceGroupOutput, Sequence, SequenceGroup,
                            SequenceGroupBase, SequenceGroupMetadata,
-                           SequenceGroupOutput, SequenceStatus)
+                           SequenceGroupOutput, SequenceOutput, SequenceStatus)
+from vllm.sim.simulator import Simulator
 from vllm.tracing import (SpanAttributes, SpanKind, extract_trace_context,
                           init_tracer)
 from vllm.transformers_utils.detokenizer import Detokenizer
@@ -261,6 +267,11 @@ class LLMEngine:
         self.seq_counter = Counter()
         self.generation_config_fields = (
             self.model_config.try_get_generation_config())
+        self.use_simulator = bool(os.getenv("VLLM_USE_SIMULATOR"))
+        self.simulator: Optional[Simulator] = None
+        if self.use_simulator:
+            trace_path = os.getenv("VLLM_SIMULATOR_TRACE_PATH")
+            self.simulator = Simulator(trace_path=trace_path)
 
         self.input_preprocessor = InputPreprocessor(self.model_config,
                                                     self.tokenizer,
@@ -270,7 +281,12 @@ class LLMEngine:
         self.input_processor = input_registry.create_input_processor(
             self.model_config)
 
-        self.model_executor = executor_class(vllm_config=vllm_config, )
+        if self.use_simulator:
+            assert self.simulator is not None
+            self.model_executor = SimulatorExecutor(
+                vllm_config=vllm_config, simulator=self.simulator)
+        else:
+            self.model_executor = executor_class(vllm_config=vllm_config, )
 
         if self.model_config.runner_type != "pooling":
             self._initialize_kv_caches()
@@ -656,6 +672,13 @@ class LLMEngine:
         ]
         min_cost_scheduler = self.scheduler[costs.index(min(costs))]
         min_cost_scheduler.add_seq_group(seq_group)
+
+        if self.use_simulator and isinstance(params, SamplingParams):
+            assert self.simulator is not None
+            self.simulator.start_request(
+                request_id,
+                seq_group.first_seq,
+                max_new_tokens=params.max_tokens)
 
         return seq_group
 
@@ -1116,6 +1139,10 @@ class LLMEngine:
                         seq_group, output, is_async)
 
             if seq_group.is_finished():
+                if self.use_simulator:
+                    assert self.simulator is not None
+                    self.simulator.finish_request(seq_group.request_id,
+                                                  seq_group.first_seq)
                 finished_now.append(i)
 
         # Generate outputs for the requests that finished this iteration
@@ -1383,12 +1410,18 @@ class LLMEngine:
                 # to each of the non-last PP stages for in-place prepare_input.
                 last_sampled_token_ids=last_sampled_token_ids)
 
-            if allow_async_output_proc:
+            if self.use_simulator:
+                outputs = [
+                    self._simulate_step(seq_group_metadata_list,
+                                        scheduler_outputs)
+                ]
+            elif allow_async_output_proc:
                 execute_model_req.async_callback = self.async_callbacks[
                     virtual_engine]
 
-            outputs = self.model_executor.execute_model(
-                execute_model_req=execute_model_req)
+            if not self.use_simulator:
+                outputs = self.model_executor.execute_model(
+                    execute_model_req=execute_model_req)
 
             # We need to do this here so that last step's sampled_token_ids can
             # be passed to the next iteration for PP.
@@ -1518,6 +1551,47 @@ class LLMEngine:
                 and cached_last_output.sampled_token_ids_cpu is not None):
             return cached_last_output.sampled_token_ids_cpu
         return None
+
+    def _simulate_step(
+        self, seq_group_metadata_list: List[SequenceGroupMetadata],
+        scheduler_outputs: SchedulerOutputs
+    ) -> SamplerOutput:
+        """Generate a SamplerOutput without real model execution."""
+        outputs = []
+        assert self.simulator is not None
+        for seq_group_meta, scheduled_seq_group in zip(
+                seq_group_metadata_list,
+                scheduler_outputs.scheduled_seq_groups):
+            seq_group = scheduled_seq_group.seq_group
+            seq = seq_group.first_seq
+
+            # Ensure simulator state exists
+            self.simulator.start_request(seq_group.request_id,
+                                         seq,
+                                         max_new_tokens=(
+                                             seq_group.sampling_params.
+                                             max_tokens if seq_group.
+                                             sampling_params else None))
+
+            token, finished = self.simulator.next_token(
+                seq_group.request_id)
+
+            logprobs = {int(token): Logprob(logprob=0.0, rank=0)}
+            seq_output = SequenceOutput(parent_seq_id=seq.seq_id,
+                                        output_token=int(token),
+                                        logprobs=logprobs)
+            outputs.append(
+                CompletionSequenceGroupOutput(samples=[seq_output],
+                                              prompt_logprobs=None))
+
+        sampler_output = SamplerOutput(outputs=outputs,
+                                       sampled_token_probs=None,
+                                       sampled_token_ids=None,
+                                       sampled_token_ids_cpu=None,
+                                       logprobs=None,
+                                       model_forward_time=0.0,
+                                       model_execute_time=0.0)
+        return sampler_output
 
     def add_logger(self, logger_name: str, logger: StatLoggerBase) -> None:
         if not self.log_stats:
