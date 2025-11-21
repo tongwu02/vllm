@@ -119,7 +119,7 @@ async def build_async_engine_client(
 @asynccontextmanager
 async def build_async_engine_client_from_engine_args(
     engine_args: AsyncEngineArgs,
-    disable_frontend_multiprocessing: bool = False,
+    disable_frontend_multiprocessing: bool = True,
 ) -> AsyncIterator[EngineClient]:
     """
     Create EngineClient, either:
@@ -660,7 +660,7 @@ async def run_server(args, **uvicorn_kwargs) -> None:
     # This avoids race conditions with ray.
     # see https://github.com/vllm-project/vllm/issues/8204
     sock_addr = (args.host or "", args.port)
-    sock = create_server_socket(sock_addr)
+    # sock = create_server_socket(sock_addr)
 
     def signal_handler(*_) -> None:
         # Interrupt server on sigterm while initializing
@@ -690,7 +690,7 @@ async def run_server(args, **uvicorn_kwargs) -> None:
     # NB: Await server shutdown only after the backend context is exited
     await shutdown_task
 
-    sock.close()
+    # sock.close()
 
 
 if __name__ == "__main__":
