@@ -1,4 +1,5 @@
 import copy
+import os
 import time
 from collections import Counter as collectionsCounter
 from collections import deque
@@ -50,6 +51,7 @@ from vllm.sequence import (ExecuteModelRequest, ParallelSampleSequenceGroup,
                            PoolingSequenceGroupOutput, Sequence, SequenceGroup,
                            SequenceGroupBase, SequenceGroupMetadata,
                            SequenceGroupOutput, SequenceStatus)
+from vllm.sim.simulator import Simulator
 from vllm.tracing import (SpanAttributes, SpanKind, extract_trace_context,
                           init_tracer)
 from vllm.transformers_utils.detokenizer import Detokenizer
@@ -270,10 +272,19 @@ class LLMEngine:
         self.input_processor = input_registry.create_input_processor(
             self.model_config)
 
-        self.model_executor = executor_class(vllm_config=vllm_config, )
+        if self.tokenizer is None:
+            raise ValueError("Simulator requires tokenizer initialization.")
 
-        if self.model_config.runner_type != "pooling":
-            self._initialize_kv_caches()
+        sim_trace_path = os.getenv("VLLM_SIM_TRACE_PATH")
+        if not sim_trace_path:
+            raise ValueError("Environment variable VLLM_SIM_TRACE_PATH must "
+                             "point to the simulator trace JSONL file.")
+
+        self.model_executor = Simulator(vllm_config=vllm_config,
+                                        tokenizer=self.get_tokenizer(),
+                                        trace_path=sim_trace_path)
+        logger.info("Running LLMEngine in simulator mode with trace %s",
+                    sim_trace_path)
 
         # If usage stat is enabled, collect relevant info.
         if is_usage_stats_enabled():
@@ -1389,6 +1400,7 @@ class LLMEngine:
 
             outputs = self.model_executor.execute_model(
                 execute_model_req=execute_model_req)
+            #
 
             # We need to do this here so that last step's sampled_token_ids can
             # be passed to the next iteration for PP.

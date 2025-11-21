@@ -1,0 +1,4 @@
+{"prompt": "Hello", "response": "Hi there!"}
+{"prompt": "HelloHello", "response": "Hi there! Hi!"}
+{"prompt": "What is vLLM?", "response": "vLLM is a fast inference engine."}
+{"prompt": "hehe", "response": "hahaha!"}
