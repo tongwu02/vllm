@@ -52,8 +52,8 @@ class Simulator(ExecutorBase):
     def determine_num_available_blocks(self) -> Tuple[int, int]:
         # Provide generous defaults so that scheduler can make progress even
         # though no actual KV cache exists.
-        num_gpu_blocks = self.cache_config.num_gpu_blocks or 8192
-        num_cpu_blocks = self.cache_config.num_cpu_blocks or 0
+        num_gpu_blocks = self.cache_config.num_gpu_blocks
+        num_cpu_blocks = self.cache_config.num_cpu_blocks
         return num_gpu_blocks, num_cpu_blocks
 
     def initialize_cache(self, num_gpu_blocks: int,

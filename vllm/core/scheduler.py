@@ -344,9 +344,9 @@ class Scheduler:
         BlockSpaceManagerImpl = BlockSpaceManager.get_block_space_manager_class(
             version)
         
-        self.cache_config.block_size = 16
-        self.cache_config.num_gpu_blocks = 10000
-        self.cache_config.num_cpu_blocks = 1000
+        # set num blocks
+        self.cache_config.num_gpu_blocks = 16
+        self.cache_config.num_cpu_blocks = 16
 
         num_gpu_blocks = cache_config.num_gpu_blocks
         if num_gpu_blocks:
