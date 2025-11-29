@@ -39,8 +39,8 @@ def simulator_env(monkeypatch: pytest.MonkeyPatch, trace_path: Path):
 
 def _make_engine() -> LLMEngine:
     args = EngineArgs(
-        model="meta-llama/Llama-3.2-1B-Instruct",
-        tokenizer="meta-llama/Llama-3.2-1B-Instruct",
+        model="exported_models/Llama-3.2-1B-Instruct",
+        tokenizer="exported_models/Llama-3.2-1B-Instruct",
         device="cpu",
         max_model_len=128,
         max_num_seqs=4,

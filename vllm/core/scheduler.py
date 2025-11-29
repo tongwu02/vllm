@@ -343,9 +343,9 @@ class Scheduler:
 
         BlockSpaceManagerImpl = BlockSpaceManager.get_block_space_manager_class(
             version)
-        
+
         # set num blocks
-        self.cache_config.num_gpu_blocks = 16
+        self.cache_config.num_gpu_blocks = 16  # Testing with original size
         self.cache_config.num_cpu_blocks = 16
 
         num_gpu_blocks = cache_config.num_gpu_blocks
@@ -382,6 +382,8 @@ class Scheduler:
         self.prev_time = 0.0
         # Did we schedule a prompt at previous step?
         self.prev_prompt = False
+        # Track which requests have been counted for hit rate (only count first prefill)
+        self._hit_rate_counted_requests: set = set()
         # Latency of the last prompt step
         self.last_prompt_latency = 0.0
         # preemption mode, RECOMPUTE or SWAP
@@ -1354,6 +1356,42 @@ class Scheduler:
                 assert len(seqs) == 1
                 num_computed_tokens = seqs[0].data.get_num_computed_tokens()
                 is_first_prefill = num_computed_tokens == 0
+
+            # === FIXED: Only count hit rate for FIRST prefill call of each request ===
+            if self.cache_config.enable_prefix_caching and is_prompt:
+                request_id = seq_group.request_id
+
+                # Only count if this request hasn't been counted before
+                if request_id not in self._hit_rate_counted_requests:
+                    self._hit_rate_counted_requests.add(request_id)
+
+                    seq = seq_group.get_seqs(status=SequenceStatus.RUNNING)[0]
+                    block_table = self.block_manager.get_block_table(seq)
+                    total_blocks = len(block_table)
+                    hit_blocks = len(common_computed_block_nums)
+
+                    # Record in the global trackers
+                    try:
+                        # Import和使用global trackers
+                        import sys
+                        from pathlib import Path
+                        milestone2_path = Path(__file__).parent.parent.parent / 'milestone2_code'
+                        if str(milestone2_path) not in sys.path:
+                            sys.path.insert(0, str(milestone2_path))
+
+                        # Record hit rate
+                        from correct_hit_rate_tracker import global_hit_rate_tracker
+                        global_hit_rate_tracker.record_first_prefill(request_id, hit_blocks, total_blocks)
+
+                        # Record cache block usage (for Task 2 metrics)
+                        if hit_blocks > 0:
+                            from cache_block_tracker import global_cache_block_tracker
+                            # common_computed_block_nums contains the actual block IDs that were hits
+                            hit_block_ids = list(common_computed_block_nums)[:hit_blocks]
+                            global_cache_block_tracker.record_cache_hit(request_id, hit_block_ids)
+                    except Exception as e:
+                        logger.warning(f"Failed to record hit rate: {e}")
+            # === END FIX ===
                 # In the next iteration, all prompt tokens are not computed.
                 # It means the prefill is chunked, and we don't need sampling.
                 # NOTE: We use get_len instead of get_prompt_len because when

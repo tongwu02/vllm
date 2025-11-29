@@ -986,6 +986,11 @@ class ComputedBlocksTracker:
         # This routine should only update hash for any new blocks too.
         self._update_seq_hashes(seq)
 
+        # DEBUG
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[DEBUG] get_num_cached_tokens for seq {seq.seq_id}, token_ids length: {len(seq.get_token_ids())}")
+
         num_computed_tokens_prev = self._seq_id_to_num_tokens_computed.get(
             seq.seq_id, None)
 
@@ -1003,9 +1008,13 @@ class ComputedBlocksTracker:
         block_hashes = self._seq_id_to_blocks_hashes[seq.seq_id]
 
         # This is O(logN), where N is the number of blocks.
-        num_cached_blocks = len(
-            self._allocator.find_cached_blocks_prefix(block_hashes))
+        cached_blocks_prefix = self._allocator.find_cached_blocks_prefix(block_hashes)
+        num_cached_blocks = len(cached_blocks_prefix)
         num_cached_tokens = num_cached_blocks * self._block_size
+
+        # DEBUG
+        logger.info(f"[DEBUG] seq {seq.seq_id}: block_hashes={block_hashes[:3] if len(block_hashes) > 3 else block_hashes}..., cached_blocks_prefix={cached_blocks_prefix[:3] if len(cached_blocks_prefix) > 3 else cached_blocks_prefix}..., num_cached_tokens={num_cached_tokens}")
+
         self._seq_id_to_num_tokens_computed[seq.seq_id] = num_cached_tokens
         return num_cached_tokens
 

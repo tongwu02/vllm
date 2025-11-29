@@ -303,7 +303,33 @@ class SelfAttnBlockSpaceManager(BlockSpaceManager):
         # right after they have been scheduled (for prefill). This assumes
         # the scheduler is synchronous so blocks are actually computed when
         # scheduling the next batch.
-        self.block_allocator.mark_blocks_as_computed([])
+        if not self.enable_caching:
+            return
+
+        # Mark all immutable blocks as computed for all sequences in the group
+        block_ids_to_mark = []
+        for seq in seq_group.get_seqs(status=SequenceStatus.RUNNING):
+            if seq.seq_id not in self.block_tables:
+                continue
+
+            block_table = self.block_tables[seq.seq_id]
+            # Get all physical block IDs
+            all_block_ids = block_table.physical_block_ids
+
+            # Only mark immutable blocks (blocks that are full and won't change)
+            # Compute how many tokens have been scheduled
+            num_tokens = len(seq.get_token_ids())
+            num_full_blocks = num_tokens // self.block_size
+
+            # Mark the full blocks (immutable blocks)
+            immutable_block_ids = all_block_ids[:num_full_blocks]
+            block_ids_to_mark.extend(immutable_block_ids)
+
+        if block_ids_to_mark:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"[MARK_DEBUG] request_id={seq_group.request_id}, marking {len(block_ids_to_mark)} blocks as computed: {block_ids_to_mark[:5]}")
+            self.block_allocator.mark_blocks_as_computed(block_ids_to_mark)
 
     def get_common_computed_block_ids(
             self, seqs: List[Sequence]) -> GenericSequence[int]:
