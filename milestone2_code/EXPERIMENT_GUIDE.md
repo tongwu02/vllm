@@ -19,6 +19,10 @@
 
 ## 完整实验流程
 
+### 将llama-3.2的模型准备到exported_models下面
+我是这么做的 VLLM/exported_models/Llama-3.2-1B-Instruct
+
+
 ### 步骤 1: 下载 ShareGPT 数据
 
 ```bash
