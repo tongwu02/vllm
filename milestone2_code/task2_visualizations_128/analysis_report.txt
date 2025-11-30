@@ -1,0 +1,88 @@
+================================================================================
+Task 2: Cache Block Usage and Reuse Pattern Analysis
+================================================================================
+
+【1. Hit Rate Comparison】
+--------------------------------------------------------------------------------
+Correct Hit Rate (First Prefill Only):
+  Single-turn: 0.46%
+  Multi-turn:  55.77%
+  Improvement: +55.30%
+
+vLLM GPU Hit Rate (All Prefills):
+  Single-turn: 0.50%
+  Multi-turn:  57.00%
+  Improvement: +56.49%
+
+Analysis:
+  Multi-turn conversations show significantly higher hit rates due to
+  conversation history reuse. Each turn builds on previous turns,
+  allowing extensive prefix sharing.
+
+【2. Cache Block Usage Statistics】
+--------------------------------------------------------------------------------
+                          Single-turn    Multi-turn
+  Unique cache blocks:              4           128
+  Total block accesses:             4          1605
+  Repeated accesses:                0          1477
+  Avg accesses/block:            1.00         12.54
+  Max accesses/block:               1            19
+
+Analysis:
+  Single-turn shows minimal block reuse (avg 1.00 access per block),
+  indicating each request uses unique blocks. Multi-turn shows higher
+  reuse (avg 12.54 accesses per block), proving that conversation
+  history enables effective prefix caching.
+
+【3. Block Access Distribution】
+--------------------------------------------------------------------------------
+Single-turn distribution:
+  4 blocks accessed 1 time(s)
+
+Multi-turn distribution:
+  3 blocks accessed 7 time(s)
+  4 blocks accessed 8 time(s)
+  9 blocks accessed 9 time(s)
+  12 blocks accessed 10 time(s)
+  14 blocks accessed 11 time(s)
+  21 blocks accessed 12 time(s)
+  21 blocks accessed 13 time(s)
+  19 blocks accessed 14 time(s)
+  12 blocks accessed 15 time(s)
+  4 blocks accessed 16 time(s)
+  1 blocks accessed 17 time(s)
+  7 blocks accessed 18 time(s)
+  1 blocks accessed 19 time(s)
+
+Analysis:
+  Single-turn: All blocks accessed exactly once (no reuse).
+  Multi-turn: Mix of access counts, with some blocks accessed 2-4 times,
+  indicating conversation prefix blocks are reused across turns.
+
+【4. Reuse Time Gap Analysis】
+--------------------------------------------------------------------------------
+Multi-turn reuse time gaps:
+  Total reuses: 1477
+  Mean gap: 0.0750s
+  Median gap: 0.0545s
+  Min gap: 0.0037s
+  Max gap: 0.4136s
+
+Analysis:
+  The reuse time gaps show how quickly cache blocks are reused.
+  Small gaps indicate consecutive turns in the same conversation,
+  while larger gaps may indicate different conversations reusing
+  similar prefixes (e.g., system prompts).
+
+================================================================================
+【Key Findings】
+================================================================================
+✅ Multi-turn hit rate (55.77%) is 11931.9x higher than single-turn (0.46%)
+
+✅ Multi-turn shows 1477 repeated block accesses vs 0 in single-turn,
+   proving effective conversation history reuse
+
+✅ Average accesses per block: 12.54x (multi-turn) vs 1.00x (single-turn)
+
+This validates that conversation-by-conversation processing enables
+subsequent turns to effectively reuse cached blocks from previous turns!
