@@ -88,40 +88,34 @@ plt.savefig(save_path, dpi=300)
 plt.close()
 
 # ============================================================================
-# Chart 2: Cache Block Access Intensity
+# Chart 2: Cache Block Access Intensity (Average Accesses per Block)
 # ============================================================================
 fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
 labels = ['Single-turn', 'Multi-turn']
 avg_data = [single_cache.get('avg_hits_per_block', 0), multi_cache.get('avg_hits_per_block', 0)]
-max_data = [single_cache.get('max_hits_per_block', 0), multi_cache.get('max_hits_per_block', 0)]
 
 x = np.arange(len(labels))
-width = 0.35
 
-rects1 = ax.bar(x - width/2, avg_data, width, label='Avg Hits per Block', color=colors['avg'], alpha=0.8)
-rects2 = ax.bar(x + width/2, max_data, width, label='Max Hits per Block', color=colors['max'], alpha=0.8)
+# 使用单柱状图显示平均访问次数
+rects = ax.bar(x, avg_data, width=0.6, color=[colors['single'], colors['multi']], alpha=0.8)
 
-ax.set_ylabel('Number of Hits', fontsize=12)
-ax.set_title('Cache Block Access Intensity (Hits per Block)', fontsize=14, fontweight='bold')
+ax.set_ylabel('Average Accesses per Block', fontsize=12)
+ax.set_title('Cache Block Access Intensity (GPU-based)', fontsize=14, fontweight='bold')
 ax.set_xticks(x)
 ax.set_xticklabels(labels, fontsize=12)
-ax.legend()
 ax.grid(axis='y', alpha=0.3, linestyle='--')
 
-def add_val_labels(rects, is_float=False):
-    for rect in rects:
-        height = rect.get_height()
-        val_str = f'{height:.2f}' if is_float else f'{int(height)}'
-        ax.text(rect.get_x() + rect.get_width()/2., height,
-                val_str, ha='center', va='bottom', fontsize=10, fontweight='bold')
-
-add_val_labels(rects1, is_float=True)
-add_val_labels(rects2, is_float=False)
+# 添加数值标签
+for rect in rects:
+    height = rect.get_height()
+    ax.text(rect.get_x() + rect.get_width()/2., height + max(avg_data)*0.02,
+            f'{height:.2f}', ha='center', va='bottom', fontsize=11, fontweight='bold')
 
 plt.tight_layout()
-save_path = output_dir / "2_hits_per_block.png"
+save_path = output_dir / "2_avg_accesses_per_block.png"
 plt.savefig(save_path, dpi=300)
+print(f"✓ Saved: {save_path.name}")
 plt.close()
 
 # ============================================================================

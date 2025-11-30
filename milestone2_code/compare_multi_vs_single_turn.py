@@ -150,21 +150,19 @@ def run_experiment(trace_path, experiment_name, use_conversation_mode=False):
     print(f"  Total blocks: {stats['total_blocks']}")
     print(f"  Hit blocks: {stats['hit_blocks']}")
     print(f"  Correct hit rate (first prefill only): {stats['overall_hit_rate']:.2%}")
-    print(f"  vLLM GPU hit rate: {gpu_hit_rate:.2%}" if gpu_hit_rate >= 0 else "  vLLM GPU hit rate: N/A (CPU mode)")
-    print(f"  vLLM CPU hit rate: {cpu_hit_rate:.2%}" if cpu_hit_rate >= 0 else "  vLLM CPU hit rate: N/A")
+    print(f"  vLLM GPU hit rate (all prefills): {gpu_hit_rate:.2%}" if gpu_hit_rate >= 0 else "  vLLM GPU hit rate: N/A (CPU mode)")
 
-    print(f"\n【Task 2 Additional Metrics】")
+    print(f"\n【Task 2: Cache Block Usage (Based on GPU Hit Rate)】")
     print(f"  Cache blocks used: {cache_stats['total_cached_blocks']}")
     print(f"  Total cache block accesses: {cache_stats['total_block_accesses']}")
-    print(f"  Avg hits per block: {cache_stats['avg_hits_per_block']:.2f}")
-    print(f"  Max hits per block: {cache_stats['max_hits_per_block']}")
+    print(f"  Avg accesses per block: {cache_stats['avg_hits_per_block']:.2f}")
     if cache_stats['total_reuses'] > 0:
-        print(f"  Block reuses with time gap: {cache_stats['total_reuses']}")
+        print(f"  Repeated accesses (>=2 times): {cache_stats['total_reuses']}")
         print(f"  Avg reuse gap: {cache_stats['avg_reuse_gap_seconds']:.4f}s")
         print(f"  Min reuse gap: {cache_stats['min_reuse_gap_seconds']:.4f}s")
         print(f"  Max reuse gap: {cache_stats['max_reuse_gap_seconds']:.4f}s")
     else:
-        print(f"  Block reuses with time gap: 0 (no repeated accesses)")
+        print(f"  Repeated accesses: 0 (no reuse)")
 
     stats['gpu_hit_rate'] = gpu_hit_rate
     stats['cpu_hit_rate'] = cpu_hit_rate
@@ -213,32 +211,16 @@ if single_gpu >= 0 and multi_gpu >= 0:
 else:
     print(f"  N/A (running in CPU mode)")
 
-# vLLM CPU hit rate
-single_cpu = single_stats.get('cpu_hit_rate', -1)
-multi_cpu = multi_stats.get('cpu_hit_rate', -1)
-
-print(f"\n【vLLM CPU Hit Rate】")
-if single_cpu >= 0 and multi_cpu >= 0:
-    print(f"  Single-turn: {single_cpu:.2%}")
-    print(f"  Multi-turn:  {multi_cpu:.2%}")
-    if multi_cpu > single_cpu:
-        print(f"  ✅ Multi-turn is HIGHER! (+{multi_cpu - single_cpu:.2%})")
-    else:
-        print(f"  ❌ Multi-turn is not higher ({multi_cpu - single_cpu:+.2%})")
-else:
-    print(f"  N/A")
-
-# Task 2: Cache Block Usage Comparison
+# Task 2: Cache Block Usage Comparison (Based on GPU Hit Rate)
 single_cache = single_stats.get('cache_stats', {})
 multi_cache = multi_stats.get('cache_stats', {})
 
-print(f"\n【Task 2: Cache Block Usage Statistics】")
+print(f"\n【Task 2: Cache Block Usage Statistics (GPU-based)】")
 print(f"  Metric                        | Single-turn | Multi-turn")
 print(f"  " + "-" * 60)
 print(f"  Unique cache blocks           | {single_cache.get('total_cached_blocks', 0):11d} | {multi_cache.get('total_cached_blocks', 0):10d}")
 print(f"  Total block accesses          | {single_cache.get('total_block_accesses', 0):11d} | {multi_cache.get('total_block_accesses', 0):10d}")
 print(f"  Avg accesses per block        | {single_cache.get('avg_hits_per_block', 0):11.2f} | {multi_cache.get('avg_hits_per_block', 0):10.2f}")
-print(f"  Max accesses per block        | {single_cache.get('max_hits_per_block', 0):11d} | {multi_cache.get('max_hits_per_block', 0):10d}")
 print(f"  Repeated accesses (>=2 times) | {single_cache.get('total_reuses', 0):11d} | {multi_cache.get('total_reuses', 0):10d}")
 
 print(f"\n【Task 2: Cache Block Reuse Time Gaps】")

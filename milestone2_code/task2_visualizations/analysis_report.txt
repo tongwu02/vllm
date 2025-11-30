@@ -1,0 +1,8 @@
+Task 2 Analysis Report
+==============================
+
+Single-turn Hit Rate: 0.00%
+Multi-turn Hit Rate:  59.03%
+
+Single-turn Avg Gap:  0.0021s
+Multi-turn Avg Gap:   0.0222s
