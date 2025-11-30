@@ -264,3 +264,30 @@ os.unlink(filtered_single_trace)
 print("\n" + "=" * 80)
 print("✓ Done")
 print("=" * 80)
+# ... (前面的代码保持不变) ...
+
+# ==========================================
+# [新增] 保存实验结果供 visualize_task2.py 读取
+# ==========================================
+print("\n【Saving Results】")
+results_to_save = {
+    "single_turn": single_stats,
+    "multi_turn": multi_stats
+}
+
+output_json_path = Path(__file__).parent / "task2_results.json"
+with open(output_json_path, 'w') as f:
+    json.dump(results_to_save, f, indent=2)
+
+print(f"✓ Results saved to: {output_json_path}")
+print("  You can now run 'python visualize_task2.py' to generate plots.")
+
+# 清理 (保持原有的清理代码)
+if os.path.exists(filtered_multi_trace):
+    os.unlink(filtered_multi_trace)
+if os.path.exists(filtered_single_trace):
+    os.unlink(filtered_single_trace)
+
+print("\n" + "=" * 80)
+print("✓ Done")
+print("=" * 80)
