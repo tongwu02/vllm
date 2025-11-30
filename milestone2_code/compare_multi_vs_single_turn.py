@@ -27,7 +27,7 @@ print("=" * 80)
 
 # 过滤multi-turn trace，只保留短prompts的完整conversations
 print("\n【Step 1】Filtering multi-turn conversations...")
-MAX_TOKENS = 800  # 增大token限制以处理更多数据
+MAX_TOKENS = 2048  # 增大token限制以处理更多数据
 
 conversations = defaultdict(list)
 with open(multi_turn_trace, 'r') as f:
@@ -51,8 +51,9 @@ if not filtered_multi_convs:
     print("❌ No suitable multi-turn conversations found!")
     sys.exit(1)
 
-# 选择前N个conversations进行测试 (增加到50个以处理更多数据)
-NUM_CONVS_TO_TEST = min(50, len(filtered_multi_convs))
+# NUM_CONVS_TO_TEST = min(50, len(filtered_multi_convs))
+# 选择所有数据进行测试
+NUM_CONVS_TO_TEST = len(filtered_multi_convs)
 selected_convs = dict(list(filtered_multi_convs.items())[:NUM_CONVS_TO_TEST])
 
 # 统计信息
@@ -113,7 +114,7 @@ def run_experiment(trace_path, experiment_name, use_conversation_mode=False):
         device="cpu",
         max_model_len=2048,  # 增大到2048
         max_num_seqs=1,
-        block_size=8,
+        block_size=128,  # 增大到128
         enable_prefix_caching=True,
     )
     engine = LLMEngine.from_engine_args(args)

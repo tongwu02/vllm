@@ -270,9 +270,12 @@ class ShareGPTPreprocessor:
         all_trace_entries = []
 
         with open(input_path, 'r', encoding='utf-8') as f:
+            # 计数器
+            collected_conversations = 0
             for line_idx, line in enumerate(f):
+                
                 # 限制处理数量
-                if max_conversations and line_idx >= max_conversations:
+                if max_conversations and collected_conversations >= max_conversations:
                     break
 
                 try:
@@ -295,6 +298,8 @@ class ShareGPTPreprocessor:
                     continue
 
                 self.stats['valid_conversations'] += 1
+
+                collected_conversations += 1
 
                 # 转换为trace条目
                 trace_entries = self.conversation_to_trace_entries(
