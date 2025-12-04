@@ -27,8 +27,14 @@ def main():
     # 配置参数
     input_file = Path('ShareGPT_V3_unfiltered_cleaned_split.json')
     output_dir = Path('milestone2_code/traces')
-    model_path = 'exported_models/Llama-3.2-1B-Instruct'
+    model_path = str(Path(__file__).parent.parent / 'exported_models' / 'Llama-3.2-1B-Instruct')
     max_conversations = 100  # 限制为100条对话用于测试
+
+    # System prompt配置 (可选)
+    # - None: 所有对话都不添加system prompt
+    # - 字符串: 所有对话都添加该system prompt
+    # - "random": 50%的对话添加默认system prompt，50%不添加
+    system_prompt = "random"  # 例如: None, "You are a helpful assistant.", "random"
 
     # 检查输入文件
     if not input_file.exists():
@@ -39,16 +45,20 @@ def main():
     print(f"输入文件: {input_file}")
     print(f"文件大小: {input_file.stat().st_size / 1024 / 1024:.1f} MB")
     print(f"处理数量: {max_conversations} 条对话")
+    if system_prompt:
+        print(f"System prompt: {system_prompt}")
+    else:
+        print("System prompt: None (不添加)")
     print()
 
     # 加载tokenizer
     print("步骤1: 加载tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
     print(f"  ✓ Tokenizer loaded: {model_path}")
     print()
 
     # 创建preprocessor
-    preprocessor = ShareGPTPreprocessor(tokenizer)
+    preprocessor = ShareGPTPreprocessor(tokenizer, system_prompt=system_prompt)
 
     # 处理single-turn数据
     print("步骤2: 处理Single-Turn数据...")
@@ -70,6 +80,8 @@ def main():
         'filtered_conversations': 0,
         'valid_conversations': 0,
         'total_turns': 0,
+        'conversations_with_system_prompt': 0,
+        'conversations_without_system_prompt': 0,
     }
 
     # 处理multi-turn数据

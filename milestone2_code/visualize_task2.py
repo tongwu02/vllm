@@ -181,58 +181,70 @@ print(f"✓ Saved: {save_path.name}")
 plt.close()
 
 # ============================================================================
-# Chart 4: Reuse Time Gap Distribution (Histogram Comparison) - [MODIFIED]
+# Chart 4a: Single-turn Reuse Time Gap Distribution
 # ============================================================================
 s_gaps_all = single_cache.get('all_reuse_gaps', [])
-m_gaps_all = multi_cache.get('all_reuse_gaps', [])
 
-# 检查是否有数据
-has_s = len(s_gaps_all) > 0
-has_m = len(m_gaps_all) > 0
-
-if has_s or has_m:
+if len(s_gaps_all) > 0:
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-    
-    # 截断数据以便更好显示 (比如只看前 10 秒)
+
+    # 截断数据以便更好显示
     limit = 10.0
     s_plot = [g for g in s_gaps_all if g < limit]
-    m_plot = [g for g in m_gaps_all if g < limit]
-    
-    # 绘制直方图
-    # 如果两者都有数据，画并排；如果只有一个，画一个
-    data_list = []
-    label_list = []
-    color_list = []
-    
-    if has_m:
-        data_list.append(m_plot)
-        label_list.append('Multi-turn')
-        color_list.append(colors['multi'])
-    
-    if has_s:
-        data_list.append(s_plot)
-        label_list.append('Single-turn')
-        color_list.append(colors['single'])
-    elif not has_s:
-        # 为了让图例显示 Single-turn (No Data)，我们画一个空的 dummy plot
-        ax.plot([], [], color=colors['single'], label='Single-turn (No Reuses)', linewidth=2)
 
-    if data_list:
-        ax.hist(data_list, bins=50, label=label_list, color=color_list, alpha=0.7, edgecolor='black')
-
+    ax.hist(s_plot, bins=50, color=colors['single'], alpha=0.7, edgecolor='black')
     ax.set_xlabel('Reuse Time Gap (Seconds)', fontsize=12)
     ax.set_ylabel('Frequency (Count)', fontsize=12)
-    ax.set_title('Distribution of Time Gaps Between Reuses (Single vs Multi)', fontsize=14, fontweight='bold')
-    ax.legend()
+    ax.set_title('Single-turn: Time Gap Distribution Between Block Reuses', fontsize=14, fontweight='bold')
     ax.grid(axis='y', alpha=0.3)
-    
+
+    # 添加统计信息
+    avg_gap = single_cache.get('avg_reuse_gap_seconds', 0)
+    ax.text(0.98, 0.97, f'Avg Gap: {avg_gap:.4f}s\nTotal Reuses: {len(s_gaps_all)}',
+            transform=ax.transAxes, fontsize=11,
+            verticalalignment='top', horizontalalignment='right',
+            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
     plt.tight_layout()
-    save_path = output_dir / "4_reuse_time_gap_distribution.png"
+    save_path = output_dir / "4a_single_turn_gap_distribution.png"
     plt.savefig(save_path, dpi=300)
     print(f"✓ Saved: {save_path.name}")
     plt.close()
 else:
-    print("ℹ️ No reuse gap data found for either case, skipping histogram.")
+    print("ℹ️ No single-turn reuse gap data, skipping single-turn histogram.")
+
+# ============================================================================
+# Chart 4b: Multi-turn Reuse Time Gap Distribution
+# ============================================================================
+m_gaps_all = multi_cache.get('all_reuse_gaps', [])
+
+if len(m_gaps_all) > 0:
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+
+    # 截断数据以便更好显示
+    limit = 10.0
+    m_plot = [g for g in m_gaps_all if g < limit]
+
+    ax.hist(m_plot, bins=50, color=colors['multi'], alpha=0.7, edgecolor='black')
+    ax.set_xlabel('Reuse Time Gap (Seconds)', fontsize=12)
+    ax.set_ylabel('Frequency (Count)', fontsize=12)
+    ax.set_title('Multi-turn: Time Gap Distribution Between Block Reuses', fontsize=14, fontweight='bold')
+    ax.grid(axis='y', alpha=0.3)
+
+    # 添加统计信息
+    avg_gap = multi_cache.get('avg_reuse_gap_seconds', 0)
+    ax.text(0.98, 0.97, f'Avg Gap: {avg_gap:.4f}s\nTotal Reuses: {len(m_gaps_all)}',
+            transform=ax.transAxes, fontsize=11,
+            verticalalignment='top', horizontalalignment='right',
+            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+    plt.tight_layout()
+    save_path = output_dir / "4b_multi_turn_gap_distribution.png"
+    plt.savefig(save_path, dpi=300)
+    print(f"✓ Saved: {save_path.name}")
+    plt.close()
+else:
+    print("ℹ️ No multi-turn reuse gap data, skipping multi-turn histogram.")
 
 # ============================================================================
 # Report Generation

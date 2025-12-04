@@ -31,6 +31,14 @@ class CacheBlockTracker:
         # request_id -> list of block_ids that were cache hits
         self.request_hit_blocks: Dict[str, List[int]] = defaultdict(list)
 
+        # Temporal data for sharing rate over time
+        # List of (timestamp, is_hit) for each cache access
+        self.temporal_access_log: List[Tuple[float, bool]] = []
+
+        # Per-request statistics for temporal analysis
+        # request_id -> (timestamp, num_hits, num_blocks)
+        self.request_timeline: List[Tuple[float, str, int, int]] = []
+
         self.start_time = time.time()
 
     def record_cache_hit(self, request_id: str, block_ids: List[int]):
@@ -60,6 +68,13 @@ class CacheBlockTracker:
 
             # 记录request的hit blocks
             self.request_hit_blocks[request_id].append(block_id)
+
+            # 记录temporal access log（每个block access记录一次）
+            self.temporal_access_log.append((current_time, True))
+
+        # 记录request timeline
+        if block_ids:
+            self.request_timeline.append((current_time, request_id, len(block_ids), len(set(block_ids))))
 
     def get_stats(self) -> Dict:
         """获取统计信息"""
@@ -124,6 +139,11 @@ class CacheBlockTracker:
             'block_hit_counts': dict(self.block_hit_count),
             'reuse_gaps_by_block': {k: list(v) for k, v in self.block_reuse_gaps.items()},
             'all_reuse_gaps': all_gaps,
+
+            # 新增：时序数据（用于sharing rate over time）
+            'temporal_access_log': self.temporal_access_log,
+            'request_timeline': self.request_timeline,
+            'experiment_duration': time.time() - self.start_time,
         }
 
     def reset(self):
@@ -132,6 +152,8 @@ class CacheBlockTracker:
         self.block_hit_count.clear()
         self.block_reuse_gaps.clear()
         self.request_hit_blocks.clear()
+        self.temporal_access_log.clear()
+        self.request_timeline.clear()
         self.start_time = time.time()
 
 

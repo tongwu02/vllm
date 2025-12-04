@@ -1361,7 +1361,7 @@ class Scheduler:
             if self.cache_config.enable_prefix_caching and is_prompt:
                 request_id = seq_group.request_id
 
-                # Only count if this request hasn't been counted before
+                # Only count CORRECT hit rate for FIRST prefill of each request
                 if request_id not in self._hit_rate_counted_requests:
                     self._hit_rate_counted_requests.add(request_id)
 
@@ -1379,18 +1379,28 @@ class Scheduler:
                         if str(milestone2_path) not in sys.path:
                             sys.path.insert(0, str(milestone2_path))
 
-                        # Record hit rate
+                        # Record correct hit rate (first prefill only)
                         from correct_hit_rate_tracker import global_hit_rate_tracker
                         global_hit_rate_tracker.record_first_prefill(request_id, hit_blocks, total_blocks)
-
-                        # Record cache block usage (for Task 2 metrics)
-                        if hit_blocks > 0:
-                            from cache_block_tracker import global_cache_block_tracker
-                            # common_computed_block_nums contains the actual block IDs that were hits
-                            hit_block_ids = list(common_computed_block_nums)[:hit_blocks]
-                            global_cache_block_tracker.record_cache_hit(request_id, hit_block_ids)
                     except Exception as e:
-                        logger.warning(f"Failed to record hit rate: {e}")
+                        logger.warning(f"Failed to record correct hit rate: {e}")
+
+                # Record cache block usage for ALL prefills (matches GPU hit rate calculation)
+                # NOTE: This includes chunked prefills and recompute prefills
+                try:
+                    import sys
+                    from pathlib import Path
+                    milestone2_path = Path(__file__).parent.parent.parent / 'milestone2_code'
+                    if str(milestone2_path) not in sys.path:
+                        sys.path.insert(0, str(milestone2_path))
+
+                    if len(common_computed_block_nums) > 0:
+                        from cache_block_tracker import global_cache_block_tracker
+                        # common_computed_block_nums is a set of block IDs that were cache hits
+                        hit_block_ids = list(common_computed_block_nums)
+                        global_cache_block_tracker.record_cache_hit(request_id, hit_block_ids)
+                except Exception as e:
+                    logger.warning(f"Failed to record cache block usage: {e}")
             # === END FIX ===
                 # In the next iteration, all prompt tokens are not computed.
                 # It means the prefill is chunked, and we don't need sampling.

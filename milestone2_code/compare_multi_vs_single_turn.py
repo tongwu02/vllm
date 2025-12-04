@@ -114,7 +114,7 @@ def run_experiment(trace_path, experiment_name, use_conversation_mode=False):
         device="cpu",
         max_model_len=2048,  # 增大到2048
         max_num_seqs=1,
-        block_size=128,  # 增大到128
+        block_size=16,  # 增大到128
         enable_prefix_caching=True,
     )
     engine = LLMEngine.from_engine_args(args)

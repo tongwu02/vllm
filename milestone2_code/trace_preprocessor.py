@@ -31,17 +31,25 @@ class Conversation:
 class ShareGPTPreprocessor:
     """ShareGPT数据预处理器"""
 
-    def __init__(self, tokenizer):
+    def __init__(self, tokenizer, system_prompt: Optional[str] = None):
         """
         Args:
             tokenizer: HuggingFace tokenizer (用于应用chat template)
+            system_prompt: Optional system prompt configuration:
+                          - None: 不添加system prompt
+                          - 字符串: 为所有对话添加该system prompt
+                          - "random": 随机为50%的对话添加默认system prompt
         """
         self.tokenizer = tokenizer
+        self.system_prompt = system_prompt
+        self.default_system_prompt = "You are a helpful assistant."
         self.stats = {
             'total_conversations': 0,
             'filtered_conversations': 0,
             'valid_conversations': 0,
             'total_turns': 0,
+            'conversations_with_system_prompt': 0,
+            'conversations_without_system_prompt': 0,
         }
 
     def normalize_role(self, role: str) -> str:
@@ -67,9 +75,10 @@ class ShareGPTPreprocessor:
 
         执行以下操作:
         1. 标准化role labels
-        2. 移除system消息
-        3. 移除leading assistant消息
-        4. 验证对话有效性
+        2. 移除metadata类的system消息（如"This is from xxx.com"）
+        3. 保留role instruction类的system prompt会在format时添加
+        4. 移除leading assistant消息
+        5. 验证对话有效性
 
         Args:
             raw_conv: 原始对话数据
@@ -86,15 +95,21 @@ class ShareGPTPreprocessor:
         if not raw_messages:
             return None
 
-        # 标准化roles并移除system消息
+        # 标准化roles并移除metadata类的system消息
         messages = []
         for msg in raw_messages:
             role = self.normalize_role(msg.get('from', ''))
             content = msg.get('value', '').strip()
 
-            # 跳过system消息
+            # 跳过metadata类的system消息
+            # 这些通常是网站信息，不是角色指令
             if role == 'system':
-                continue
+                # 简单启发式: 如果包含网站相关词汇，则认为是metadata
+                metadata_keywords = ['sharegpt', '.com', 'website', 'conversation from']
+                if any(keyword in content.lower() for keyword in metadata_keywords):
+                    continue
+                # 否则保留为潜在的role instruction
+                # 但在我们的实现中，role instruction通过self.system_prompt统一添加
 
             # 跳过空消息
             if not content:
@@ -163,6 +178,9 @@ class ShareGPTPreprocessor:
         if not self.is_valid_conversation(conv):
             return []
 
+        # 决定这个对话是否应该有system prompt
+        use_system_prompt_for_this_conv = self._should_use_system_prompt(conv.id)
+
         trace_entries = []
 
         # 计算总轮数
@@ -176,7 +194,7 @@ class ShareGPTPreprocessor:
             assistant_msg = conv.messages[1]
 
             # 使用chat template格式化
-            prompt = self._format_prompt([user_msg])
+            prompt = self._format_prompt([user_msg], use_system_prompt_for_this_conv)
             response = assistant_msg.content
 
             trace_entries.append({
@@ -200,7 +218,7 @@ class ShareGPTPreprocessor:
                 conversation_history.append(user_msg)
 
                 # 格式化prompt(包含完整历史)
-                prompt = self._format_prompt(conversation_history)
+                prompt = self._format_prompt(conversation_history, use_system_prompt_for_this_conv)
                 response = assistant_msg.content
 
                 trace_entries.append({
@@ -215,24 +233,53 @@ class ShareGPTPreprocessor:
 
         return trace_entries
 
-    def _format_prompt(self, messages: List[Message]) -> str:
+    def _should_use_system_prompt(self, conversation_id: str) -> bool:
         """
-        手动格式化prompt,遵循Llama格式但不包含system message
-
-        重要: 根据25TheFutureCloud.pdf第6页:
-        - Remove all 'system' messages
-        - 只包含user和assistant的对话
-        - Llama的tokenizer会自动添加system message,所以我们手动构建
+        决定某个对话是否应该有system prompt
 
         Args:
-            messages: 消息列表(已经移除了system messages)
+            conversation_id: 对话ID
+
+        Returns:
+            是否使用system prompt
+        """
+        if self.system_prompt is None:
+            return False
+        elif self.system_prompt == "random":
+            # 使用conversation_id的hash来决定，保证同一个conversation的决定是一致的
+            import hashlib
+            hash_value = int(hashlib.md5(conversation_id.encode()).hexdigest(), 16)
+            return hash_value % 2 == 0  # 50%概率
+        else:
+            # 固定的system prompt，所有对话都使用
+            return True
+
+    def _format_prompt(self, messages: List[Message], use_system_prompt: bool = False) -> str:
+        """
+        手动格式化prompt,遵循Llama格式
+
+        策略:
+        - 移除metadata类的system messages (如"This is from xxx.com")
+        - 可选地添加role instruction类的system prompt (如"You are a helpful assistant")
+        - 只包含user和assistant的对话
+
+        Args:
+            messages: 消息列表(已经移除了metadata system messages)
+            use_system_prompt: 是否为这个prompt添加system prompt
 
         Returns:
             格式化后的prompt字符串
         """
-        # 手动构建Llama格式的prompt,不包含system message
+        # 手动构建Llama格式的prompt
         prompt_parts = ["<|begin_of_text|>"]
 
+        # 如果应该使用system prompt, 添加它
+        if use_system_prompt:
+            actual_prompt = self.system_prompt if self.system_prompt != "random" else self.default_system_prompt
+            prompt_parts.append("<|start_header_id|>system<|end_header_id|>\n\n")
+            prompt_parts.append(f"{actual_prompt}<|eot_id|>")
+
+        # 添加对话消息
         for msg in messages:
             prompt_parts.append(f"<|start_header_id|>{msg.role}<|end_header_id|>\n\n")
             prompt_parts.append(f"{msg.content}<|eot_id|>")
@@ -308,6 +355,12 @@ class ShareGPTPreprocessor:
                     single_turn_only=single_turn_only
                 )
 
+                # 统计是否使用了system prompt
+                if self._should_use_system_prompt(conv.id):
+                    self.stats['conversations_with_system_prompt'] += 1
+                else:
+                    self.stats['conversations_without_system_prompt'] += 1
+
                 all_trace_entries.extend(trace_entries)
                 self.stats['total_turns'] += len(trace_entries)
 
@@ -320,4 +373,6 @@ class ShareGPTPreprocessor:
         logger.info(f"  Total conversations: {self.stats['total_conversations']}")
         logger.info(f"  Filtered out: {self.stats['filtered_conversations']}")
         logger.info(f"  Valid conversations: {self.stats['valid_conversations']}")
+        logger.info(f"  Conversations with system prompt: {self.stats['conversations_with_system_prompt']}")
+        logger.info(f"  Conversations without system prompt: {self.stats['conversations_without_system_prompt']}")
         logger.info(f"  Generated trace entries: {len(all_trace_entries)}")
