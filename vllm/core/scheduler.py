@@ -345,8 +345,8 @@ class Scheduler:
             version)
 
         # set num blocks
-        self.cache_config.num_gpu_blocks = 16  # Testing with original size
-        self.cache_config.num_cpu_blocks = 16
+        self.cache_config.num_gpu_blocks = 2000  # Testing with original size
+        self.cache_config.num_cpu_blocks = 2000
 
         num_gpu_blocks = cache_config.num_gpu_blocks
         if num_gpu_blocks:
