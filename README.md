@@ -112,6 +112,20 @@ python3 -m pytest tests/standalone_tests/test_simulator_mode.py
 
 ## 📊 Running Milestone 2
 
+```bash
+# 2. download data
+python download_sharegpt.py
+
+# 3. preprocess data
+python preprocess_sharegpt.py
+
+# 4. run experiment
+python compare_multi_vs_single_turn.py
+
+# 5. plot results
+python visualize_task2.py 
+python visualize_task2_advance.py
+```
 
 ## 🗂️ Running Milestone 3
 
