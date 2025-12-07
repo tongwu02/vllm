@@ -345,8 +345,18 @@ class Scheduler:
             version)
 
         # set num blocks
-        self.cache_config.num_gpu_blocks = 2000  # Testing with original size
-        self.cache_config.num_cpu_blocks = 2000
+        self.cache_config.num_gpu_blocks = 2000  # default size: 2000
+        self.cache_config.num_cpu_blocks = 2000  # default size: 2000
+
+        # read block number from environment variable
+        env_block_num = os.environ.get("VLLM_TEST_BLOCK_NUMBER")
+        if env_block_num:
+            forced_blocks = int(env_block_num)
+            # print(f"[VLLM_DEBUG] Forcing num_gpu_blocks to {forced_blocks} based on ENV")
+            # 强行修改 cache_config
+            self.cache_config.num_gpu_blocks = forced_blocks
+            # 如果是CPU模式，也可以修改 num_cpu_blocks
+            self.cache_config.num_cpu_blocks = forced_blocks
 
         num_gpu_blocks = cache_config.num_gpu_blocks
         if num_gpu_blocks:

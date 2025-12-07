@@ -1,5 +1,6 @@
 """Token blocks."""
 import sys
+import os
 from bisect import bisect_left
 from os.path import commonprefix
 from typing import (Callable, Dict, FrozenSet, Iterable, List, Optional, Set,
@@ -66,8 +67,19 @@ class PrefixCachingBlockAllocator(BlockAllocator):
         num_blocks: int,
         block_size: int,
         block_ids: Optional[Iterable[int]] = None,
-        eviction_policy: EvictionPolicy = EvictionPolicy.LRU, # change here
+        eviction_policy: EvictionPolicy = None, # change here
     ):
+        # eviction policy is None, read the environment variable
+        if eviction_policy is None:
+            policy_name = os.environ.get("VLLM_TEST_EVICTION_POLICY", "LRU")
+            if policy_name is None:
+                eviction_policy = EvictionPolicy.LRU # default to be LRU
+            else:
+                eviction_policy = EvictionPolicy[policy_name]
+
+        self.eviction_policy = eviction_policy
+        self.evictor = make_evictor(eviction_policy)
+
         if block_ids is None:
             block_ids = range(num_blocks)
 
