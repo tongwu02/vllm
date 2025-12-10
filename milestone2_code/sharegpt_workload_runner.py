@@ -306,7 +306,7 @@ if os.path.exists(filtered_single_trace_path): os.unlink(filtered_single_trace_p
 # =============================================================================
 # 8. 自动生成画图脚本提示
 # =============================================================================
-print("\n💡 Now use 'milestone2_task3_visual.py' to visualize:")
+print("\n💡 Now use 'sharegpt_workload_visual.py' to summarize and visualize results:")
 print("   1. Hit Rate vs Capacity (Line Chart)")
 print("   2. Shared Fraction (CDF)")
 print("   3. Block Hits (Histogram)")

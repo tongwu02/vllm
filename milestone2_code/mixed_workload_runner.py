@@ -23,7 +23,7 @@ except: pass
 
 # ================= 关键配置 =================
 MODEL_PATH = str(Path(__file__).parent.parent / "exported_models" / "Llama-3.2-1B-Instruct")
-TRACE_PATH = str(Path(__file__).parent / "traces" / "micro_victory.jsonl")
+TRACE_PATH = str(Path(__file__).parent / "traces" / "mixed_workload_standard.jsonl")
 
 # Capacity = 1024 tokens
 BLOCK_NUMBERS = [64] 

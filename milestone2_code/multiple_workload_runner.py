@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Task 1: Baseline Performance Testing (Fixed Adapter Version)
-修复了 KeyError: 'prompt' 问题。
-自动将 'messages' 格式转换为 Simulator 需要的 'prompt' 格式。
+Task 1: Baseline Performance Testing (Final Version)
+- 自动处理 'messages' 到 'prompt' 的格式转换
+- 自动截断超长 Trace 防止 OOM
+- 运行结束后自动打印格式化好的最终结果表
 """
 import sys
 import os
@@ -15,6 +16,7 @@ from typing import Dict, Any, List
 # =============================================================================
 # 1. Path Setup
 # =============================================================================
+# 确保能找到 vllm 模块
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from vllm import EngineArgs
@@ -33,7 +35,7 @@ except ImportError as e:
 model_path = str(Path(__file__).parent.parent / "exported_models" / "Llama-3.2-1B-Instruct")
 TRACE_DIR = Path(__file__).parent / "traces"
 
-# 指向你刚才生成的 Clean 文件
+# 数据集路径配置
 DATASETS = {
     "ShareGPT": TRACE_DIR / "sharegpt_multi_turn.jsonl",
     "AgentBank": TRACE_DIR / "agentbank_multi_turn.jsonl",
@@ -44,12 +46,13 @@ DATASETS = {
 # 2. Configuration
 # =============================================================================
 
-# 取样数量：500条对话足以测出缓存性能
 MAX_REQUESTS_PER_DATASET = 500 
 MAX_TOKENS = 8192
 
 BLOCK_SIZES = [16]
-BLOCK_NUMBERS = [32, 28] 
+
+BLOCK_NUMBERS = [64] 
+
 EVICTION_POLICIES = ["LRU", "LFU", "FIFO", "PROTECTED_LRU"]
 
 TEST_CONFIGS = []
@@ -63,21 +66,25 @@ for bs in BLOCK_SIZES:
             })
 
 print("=" * 80)
-print(f"Task 1: Baseline Sweep (Adapter Mode)")
-print(f"Max Requests per Dataset: {MAX_REQUESTS_PER_DATASET}")
+print(f"Task 1: Baseline Sweep (Final Auto-Print)")
+print(f"Max Requests: {MAX_REQUESTS_PER_DATASET} | Max Tokens: {MAX_TOKENS}")
 print("=" * 80)
 
-# 加载 Tokenizer (用于把 messages 转成 prompt string)
-tokenizer = AutoTokenizer.from_pretrained(model_path)
+# 加载 Tokenizer
+try:
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    # 防止有些特殊的 tokenizer 报 warning
+    tokenizer.model_max_length = 1000000000 
+except Exception as e:
+    print(f"Tokenizer error: {e}")
+    sys.exit(1)
 
 # =============================================================================
-# 3. Helper: Smart Trace Adapter (关键修复)
+# 3. Helper: Smart Trace Adapter
 # =============================================================================
 def get_sample_trace(name: str, full_path: Path, limit: int) -> str:
     """
-    读取 Clean 格式 (messages list) 的文件，
-    将其转换为 Simulator 需要的 Trace 格式 (prompt string)，
-    并只保存前 limit 条到临时文件。
+    读取原始文件，转换格式，并截取前 limit 条保存到临时文件。
     """
     temp_path = TRACE_DIR / f"temp_{name}_{limit}.jsonl"
     print(f"   -> Converting & Sampling {name} to {temp_path}...")
@@ -98,10 +105,6 @@ def get_sample_trace(name: str, full_path: Path, limit: int) -> str:
                     messages = data["messages"]
                     conversation_id = data.get("conversation_id", f"conv_{processed_count}")
                     
-                    # --- 核心转换逻辑 ---
-                    # 我们需要把整个对话拆解成 Simulator 能看懂的 Single Turn 序列
-                    # Simulator 会根据 conversation_id 自动把它们串起来
-                    
                     history = []
                     turn_index = 0
                     
@@ -111,35 +114,28 @@ def get_sample_trace(name: str, full_path: Path, limit: int) -> str:
                             continue
                             
                         if msg['role'] == 'user':
-                            # 构造当前轮次的 Prompt：历史 + 当前问题
                             current_input = history + [msg]
                             
-                            # 使用 chat_template 变成字符串 
+                            # 转换成 String Prompt
                             prompt_str = tokenizer.apply_chat_template(
                                 current_input, 
                                 tokenize=False, 
                                 add_generation_prompt=True
                             )
                             
-                            # === [关键修改] 长度检查 ===
-                            # 使用全局常量 MAX_TOKENS
+                            # 长度检查
                             token_ids = tokenizer.encode(prompt_str, add_special_tokens=False)
                             if len(token_ids) > MAX_TOKENS:
-                                # 如果这一轮太长，跳过这一轮 (或者你可以选择 break 跳过整个对话)
-                                print(f"      [Warn] Skipping a turn > {MAX_TOKENS} tokens.")
                                 continue 
-                            # ============================
                             
-                            # 写入 Trace 条目
                             entry = {
                                 "conversation_id": conversation_id,
                                 "turn_index": turn_index,
                                 "prompt": prompt_str,
-                                "response": "" # Simulator 运行时不需要真实 response
+                                "response": "" 
                             }
                             f_out.write(json.dumps(entry, ensure_ascii=False) + "\n")
                             
-                            # 更新历史和轮数
                             history.append(msg)
                             turn_index += 1
                             
@@ -154,7 +150,6 @@ def get_sample_trace(name: str, full_path: Path, limit: int) -> str:
                     processed_count += 1
                     
             except Exception as e:
-                print(f"Warning: failed to convert line: {e}")
                 continue
             
     return str(temp_path)
@@ -162,29 +157,25 @@ def get_sample_trace(name: str, full_path: Path, limit: int) -> str:
 # =============================================================================
 # 4. Core Experiment
 # =============================================================================
-def run_single_experiment(
-    dataset_name: str,
-    trace_file: str,
-    config: Dict[str, Any]
-) -> Dict[str, Any]:
-    
+def run_single_experiment(dataset_name: str, trace_file: str, config: Dict[str, Any]) -> Dict[str, Any]:
     bs = config['block_size']
     bn = config['block_number']
     ep = config['eviction_policy']
-    capacity_tokens = bs * bn
 
-    print(f"\n--- [{dataset_name}] BS={bs} | BN={bn} | Policy={ep} ---")
+    print(f"Running [{dataset_name}]: BS={bs} | BN={bn} | Policy={ep} ...", end="\r")
 
-    # Env Vars
+    # Set Env Vars
     os.environ["VLLM_TEST_BLOCK_NUMBER"] = str(bn)
     os.environ["VLLM_TEST_EVICTION_POLICY"] = ep
     os.environ["VLLM_SIM_TRACE_PATH"] = str(trace_file)
 
-    # Reset
     global_hit_rate_tracker.reset()
     global_cache_block_tracker.reset()
 
-    # Engine
+    # Suppress vLLM logs
+    import logging
+    logging.getLogger("vllm").setLevel(logging.ERROR)
+
     engine_args = EngineArgs(
         model=model_path,
         tokenizer=model_path,
@@ -200,27 +191,24 @@ def run_single_experiment(
     try:
         engine = LLMEngine.from_engine_args(engine_args)
     except Exception as e:
-        print(f"❌ Engine Init Failed: {e}")
+        print(f"\n❌ Engine Init Failed: {e}")
         return None
 
-    # Simulator
-    simulator = ClientSimulator(
-        trace_path=str(trace_file),
-        tokenizer=tokenizer,
-        arrival_rate=1.0,
-    )
+    simulator = ClientSimulator(trace_path=str(trace_file), tokenizer=tokenizer, arrival_rate=1.0)
 
     start_t = time.time()
-    # 这里的 simulator 现在能读到正确的 prompt 字段了
     simulator.send_requests_conversation_by_conversation(engine, max_steps_per_turn=5000)
     duration = time.time() - start_t
 
     stats = global_hit_rate_tracker.get_stats()
     
+    # Cleanup
     os.environ.pop("VLLM_TEST_BLOCK_NUMBER", None)
     os.environ.pop("VLLM_TEST_EVICTION_POLICY", None)
     del engine
     gc.collect() 
+    
+    print(f"Running [{dataset_name}]: BS={bs} | BN={bn} | Policy={ep} -> Hit Rate: {stats['overall_hit_rate']:.2%}")
 
     return {
         "dataset": dataset_name,
@@ -236,41 +224,50 @@ results_summary = []
 
 for dataset_name, path in DATASETS.items():
     if not os.path.exists(path):
-        print(f"⚠️ Skipping {dataset_name}: {path} not found.")
+        print(f"⚠️ Skipping {dataset_name}: File not found.")
         continue
         
-    print(f"\n" + "="*60)
-    print(f"📂 Processing: {dataset_name}")
-    
-    # 这一步现在会自动处理格式转换，生成带 'prompt' 字段的临时文件
+    print(f"\n📂 Processing: {dataset_name}")
     temp_trace = get_sample_trace(dataset_name, path, MAX_REQUESTS_PER_DATASET)
     
-    print("="*60)
-
     for config in TEST_CONFIGS:
         res = run_single_experiment(dataset_name, temp_trace, config)
         if res:
             results_summary.append(res)
-            print(f"   >>> Result: Hit Rate={res['hit_rate']:.2%} | Duration={res['duration']:.2f}s")
     
-    # 清理临时文件
     if os.path.exists(temp_trace):
         os.remove(temp_trace)
 
 # =============================================================================
-# 6. Save
+# 6. Final Print & Save
 # =============================================================================
-print("\n" + "="*100)
-print(f"{'Dataset':<12} | {'BN':<5} | {'Policy':<14} | {'Hit Rate':<10}")
-print("-" * 100)
 
-for res in results_summary:
-    d = res['dataset']
-    c = res['config']
-    print(f"{d:<12} | {c['block_number']:<5} | {c['eviction_policy']:<14} | {res['hit_rate']:<10.2%}")
-
+# 1. 保存 JSON
 output_file = Path(__file__).parent / "task1_results_sweep.json"
 with open(output_file, 'w') as f:
     json.dump(results_summary, f, indent=2)
 
-print(f"\n✓ Results saved to: {output_file}")
+# 2. 打印最终大表
+print("\n" + "="*80)
+print("🏆 FINAL RESULTS SUMMARY")
+print("="*80)
+print(f"{'Dataset':<12} | {'BN':<6} | {'Policy':<15} | {'Hit Rate':<10} | {'Duration':<10}")
+print("-" * 80)
+
+# 对结果进行排序：Dataset -> BN -> Policy
+results_summary.sort(key=lambda x: (x['dataset'], x['config']['block_number'], x['config']['eviction_policy']))
+
+current_dataset = ""
+for res in results_summary:
+    d = res['dataset']
+    c = res['config']
+    
+    # 为了好看，不同 Dataset 之间加个空行
+    if current_dataset != "" and d != current_dataset:
+        print("-" * 80)
+    current_dataset = d
+    
+    print(f"{d:<12} | {c['block_number']:<6} | {c['eviction_policy']:<15} | {res['hit_rate']:<10.2%} | {res['duration']:<10.2f}s")
+
+print("-" * 80)
+print(f"✓ Results saved to: {output_file}")
