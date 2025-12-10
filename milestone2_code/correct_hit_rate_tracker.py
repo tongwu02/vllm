@@ -2,8 +2,8 @@
 """
 Correct Hit Rate Tracker
 
-根据25TheFutureCloud.pdf第5页的要求,正确追踪每个request的hit rate。
-只统计每个request第一次prefill调用的hit rate,忽略后续的chunked prefill。
+Correctly track the hit rate of each request according to the requirements on page 5 of 25TheFutureCloud.pdf.
+Only count the hit rate of the first prefill call for each request, ignoring subsequent chunked prefills.
 """
 import logging
 from typing import Dict, Set
@@ -13,34 +13,34 @@ logger = logging.getLogger(__name__)
 
 class CorrectHitRateTracker:
     """
-    正确的Hit Rate追踪器
+    Correct Hit Rate Tracker
 
-    只统计每个request第一次prefill时的hit rate,
-    避免被chunked prefill的重复调用污染。
+    Only count the hit rate at the first prefill of each request,
+    avoiding pollution from repeated calls by chunked prefill.
     """
 
     def __init__(self):
-        # 追踪哪些requests已经统计过
+        # Track which requests have already been counted
         self.counted_requests: Set[str] = set()
 
-        # 统计数据
+        # Statistics
         self.total_requests = 0
         self.total_blocks = 0
         self.hit_blocks = 0
 
-        # Per-request详细数据
+        # Per-request detailed statistics
         self.request_stats: Dict[str, Dict] = {}
 
     def record_first_prefill(self, request_id: str, hit_blocks_count: int, total_blocks_count: int):
         """
-        记录某个request第一次prefill的hit rate
+        Record the hit rate of the first prefill for a request
 
         Args:
             request_id: Request ID
-            hit_blocks_count: 命中的blocks数量
-            total_blocks_count: 总blocks数量
+            hit_blocks_count: Number of hit blocks
+            total_blocks_count: Total number of blocks
         """
-        # 只记录一次
+        # Record only once
         if request_id in self.counted_requests:
             logger.debug(f"Request {request_id} already counted, skipping")
             return
@@ -50,7 +50,7 @@ class CorrectHitRateTracker:
         self.total_blocks += total_blocks_count
         self.hit_blocks += hit_blocks_count
 
-        # 记录详细信息
+        # Record detailed information
         hit_rate = hit_blocks_count / total_blocks_count if total_blocks_count > 0 else 0.0
         self.request_stats[request_id] = {
             'hit_blocks': hit_blocks_count,
@@ -64,7 +64,7 @@ class CorrectHitRateTracker:
 
     def get_overall_hit_rate(self) -> float:
         """
-        获取整体hit rate (基于blocks)
+        Get overall hit rate (block-based)
 
         Returns:
             Hit rate (0.0 - 1.0)
@@ -75,10 +75,10 @@ class CorrectHitRateTracker:
 
     def get_stats(self) -> Dict:
         """
-        获取统计信息
+        Get statistics
 
         Returns:
-            统计字典
+            Statistics dictionary
         """
         return {
             'total_requests': self.total_requests,
@@ -87,11 +87,11 @@ class CorrectHitRateTracker:
             'overall_hit_rate': self.get_overall_hit_rate(),
             'requests_with_hits': sum(1 for s in self.request_stats.values() if s['hit_blocks'] > 0),
             'requests_with_zero_hits': sum(1 for s in self.request_stats.values() if s['hit_blocks'] == 0),
-            'request_stats': self.request_stats,  # 添加per-request统计
+            'request_stats': self.request_stats,  # Add per-request statistics
         }
 
     def reset(self):
-        """重置统计"""
+        """Reset statistics"""
         self.counted_requests.clear()
         self.total_requests = 0
         self.total_blocks = 0

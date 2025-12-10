@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-比较Multi-turn vs Single-turn的prefix cache hit rate
-目标：证明multi-turn hit rate明显大于single-turn hit rate
+Compare prefix cache hit rate: Multi-turn vs Single-turn
+Goal: Prove that multi-turn hit rate is significantly higher than single-turn hit rate
 """
 import sys
 import os
@@ -25,9 +25,9 @@ print("=" * 80)
 print("Multi-Turn vs Single-Turn Prefix Cache Hit Rate Comparison")
 print("=" * 80)
 
-# 过滤multi-turn trace，只保留短prompts的完整conversations
+# Filter multi-turn trace, keeping only complete conversations with short prompts
 print("\n【Step 1】Filtering multi-turn conversations...")
-MAX_TOKENS = 2048  # 增大token限制以处理更多数据
+MAX_TOKENS = 2048  # Increased token limit to process more data
 
 conversations = defaultdict(list)
 with open(multi_turn_trace, 'r') as f:
@@ -38,7 +38,7 @@ with open(multi_turn_trace, 'r') as f:
         entry['token_count'] = len(prompt_tokens)
         conversations[conv_id].append(entry)
 
-# 选择符合条件的conversations
+# Select valid conversations
 filtered_multi_convs = {}
 for conv_id, turns in conversations.items():
     if len(turns) >= 2 and all(turn['token_count'] <= MAX_TOKENS for turn in turns):
@@ -52,16 +52,16 @@ if not filtered_multi_convs:
     sys.exit(1)
 
 # NUM_CONVS_TO_TEST = min(50, len(filtered_multi_convs))
-# 选择所有数据进行测试
+# Select all data for testing
 NUM_CONVS_TO_TEST = len(filtered_multi_convs)
 selected_convs = dict(list(filtered_multi_convs.items())[:NUM_CONVS_TO_TEST])
 
-# 统计信息
+# Statistics
 total_multi_requests = sum(len(turns) for turns in selected_convs.values())
 print(f"\nSelected {NUM_CONVS_TO_TEST} conversations for testing")
 print(f"Total multi-turn requests: {total_multi_requests}")
 
-# 创建filtered multi-turn trace
+# Create filtered multi-turn trace
 import tempfile
 fd_multi, filtered_multi_trace = tempfile.mkstemp(suffix='_multi.jsonl')
 with open(filtered_multi_trace, 'w') as f:
@@ -72,7 +72,7 @@ os.close(fd_multi)
 
 print(f"✓ Created filtered multi-turn trace: {filtered_multi_trace}")
 
-# 从single-turn trace中选择相同数量的requests
+# Select the same number of requests from the single-turn trace
 print("\n【Step 2】Selecting single-turn requests...")
 single_requests = []
 with open(single_turn_trace, 'r') as f:
@@ -93,7 +93,7 @@ os.close(fd_single)
 print(f"Selected {len(single_requests)} single-turn requests")
 print(f"✓ Created filtered single-turn trace: {filtered_single_trace}")
 
-# 函数：运行实验并收集统计
+# Function: Run experiment and collect stats
 def run_experiment(trace_path, experiment_name, use_conversation_mode=False):
     print(f"\n{'=' * 80}")
     print(f"【{experiment_name}】")
@@ -107,19 +107,19 @@ def run_experiment(trace_path, experiment_name, use_conversation_mode=False):
     global_hit_rate_tracker.reset()
     global_cache_block_tracker.reset()
 
-    # 创建engine (增大max_model_len以处理更多数据)
+    # Create engine (increase max_model_len to process more data)
     args = EngineArgs(
         model=model_path,
         tokenizer=model_path,
         device="cpu",
-        max_model_len=2048,  # 增大到2048
+        max_model_len=2048,  # Increased to 2048
         max_num_seqs=1,
-        block_size=16,  # 增大到128
+        block_size=16,  # Increased to 128
         enable_prefix_caching=True,
     )
     engine = LLMEngine.from_engine_args(args)
 
-    # 创建simulator
+    # Create simulator
     from milestone2_code.client_simulator import ClientSimulator
     simulator = ClientSimulator(
         trace_path=trace_path,
@@ -127,7 +127,7 @@ def run_experiment(trace_path, experiment_name, use_conversation_mode=False):
         arrival_rate=1.0,
     )
 
-    # 运行实验
+    # Run experiment
     if use_conversation_mode:
         print("Using conversation-by-conversation processing...")
         simulator.send_requests_conversation_by_conversation(engine, max_steps_per_turn=2000)
@@ -136,11 +136,11 @@ def run_experiment(trace_path, experiment_name, use_conversation_mode=False):
         simulator.send_requests_to_engine(engine)
         simulator.run_engine_until_complete(engine, max_steps=10000)
 
-    # 收集统计
+    # Collect stats
     stats = global_hit_rate_tracker.get_stats()
     cache_stats = global_cache_block_tracker.get_stats()
 
-    # 获取 vLLM GPU/CPU hit rate
+    # Get vLLM GPU/CPU hit rate
     from vllm.utils import Device
     gpu_hit_rate = engine.scheduler[0].get_prefix_cache_hit_rate(Device.GPU)
     cpu_hit_rate = engine.scheduler[0].get_prefix_cache_hit_rate(Device.CPU)
@@ -170,13 +170,13 @@ def run_experiment(trace_path, experiment_name, use_conversation_mode=False):
 
     return stats
 
-# 运行single-turn实验
+# Run single-turn experiment
 single_stats = run_experiment(filtered_single_trace, "Single-Turn Experiment", use_conversation_mode=False)
 
-# 运行multi-turn实验（conversation-by-conversation mode）
+# Run multi-turn experiment (conversation-by-conversation mode)
 multi_stats = run_experiment(filtered_multi_trace, "Multi-Turn Experiment (Conversation-by-Conversation)", use_conversation_mode=True)
 
-# 比较结果
+# Compare results
 print("\n" + "=" * 80)
 print("【Comparison】")
 print("=" * 80)
@@ -230,7 +230,7 @@ print(f"  Avg reuse gap (seconds)       | {single_cache.get('avg_reuse_gap_secon
 print(f"  Min reuse gap (seconds)       | {single_cache.get('min_reuse_gap_seconds', 0):11.4f} | {multi_cache.get('min_reuse_gap_seconds', 0):10.4f}")
 print(f"  Max reuse gap (seconds)       | {single_cache.get('max_reuse_gap_seconds', 0):11.4f} | {multi_cache.get('max_reuse_gap_seconds', 0):10.4f}")
 
-# 最终结论
+# Final conclusion
 print(f"\n{'=' * 80}")
 if multi_hit_rate > single_hit_rate:
     print(f"✅ SUCCESS: Multi-turn hit rate is HIGHER than single-turn!")
@@ -239,17 +239,17 @@ if multi_hit_rate > single_hit_rate:
 else:
     print(f"❌ FAIL: Multi-turn hit rate is not higher than single-turn")
 
-# 清理
+# Cleanup
 os.unlink(filtered_multi_trace)
 os.unlink(filtered_single_trace)
 
 print("\n" + "=" * 80)
 print("✓ Done")
 print("=" * 80)
-# ... (前面的代码保持不变) ...
+# ... (Previous code remains unchanged) ...
 
 # ==========================================
-# [新增] 保存实验结果供 visualize_task2.py 读取
+# [New] Save experiment results for visualize_task2.py to read
 # ==========================================
 print("\n【Saving Results】")
 results_to_save = {
@@ -264,7 +264,7 @@ with open(output_json_path, 'w') as f:
 print(f"✓ Results saved to: {output_json_path}")
 print("  You can now run 'python visualize_task2.py' to generate plots.")
 
-# 清理 (保持原有的清理代码)
+# Cleanup (Keep original cleanup code)
 if os.path.exists(filtered_multi_trace):
     os.unlink(filtered_multi_trace)
 if os.path.exists(filtered_single_trace):

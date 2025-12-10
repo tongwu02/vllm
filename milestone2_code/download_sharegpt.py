@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-下载和准备ShareGPT数据集
+Download and prepare the ShareGPT dataset
 
-方法1: 从HuggingFace下载
-方法2: 从本地文件加载
+Method 1: Download from HuggingFace
+Method 2: Load from local file
 """
 import json
 import logging
@@ -19,11 +19,11 @@ def download_from_huggingface(
     max_samples: Optional[int] = None,
 ):
     """
-    从HuggingFace下载ShareGPT数据集
+    Download ShareGPT dataset from HuggingFace
 
     Args:
-        output_path: 输出文件路径
-        max_samples: 最多下载多少个样本（None = 全部）
+        output_path: Output file path
+        max_samples: Maximum number of samples to download (None = all)
     """
     try:
         from datasets import load_dataset
@@ -33,7 +33,7 @@ def download_from_huggingface(
 
     logger.info("Downloading ShareGPT dataset from HuggingFace...")
 
-    # 尝试多个可能的数据集源
+    # Try multiple potential dataset sources
     dataset_sources = [
         "anon8231489123/ShareGPT_Vicuna_unfiltered",
         "shibing624/sharegpt_gpt4",
@@ -67,12 +67,12 @@ def download_from_huggingface(
 
         logger.info(f"✓ Downloaded {len(dataset)} conversations")
 
-        # 如果指定了max_samples，只取部分
+        # If max_samples is specified, take only a portion
         if max_samples and max_samples < len(dataset):
             dataset = dataset.select(range(max_samples))
             logger.info(f"  Limited to {max_samples} conversations")
 
-        # 保存为JSONL格式
+        # Save in JSONL format
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, 'w', encoding='utf-8') as f:
@@ -94,7 +94,7 @@ def download_from_huggingface(
 
 
 def verify_dataset(file_path: Path) -> bool:
-    """验证数据集格式是否正确"""
+    """Verify if the dataset format is correct"""
     logger.info(f"\nVerifying dataset: {file_path}")
 
     if not file_path.exists():
@@ -102,7 +102,7 @@ def verify_dataset(file_path: Path) -> bool:
         return False
 
     try:
-        # 读取前几行检查格式
+        # Read the first few lines to check format
         sample_size = 5
         samples = []
 
@@ -115,7 +115,7 @@ def verify_dataset(file_path: Path) -> bool:
         logger.info(f"✓ File format is valid JSONL")
         logger.info(f"  Sample size checked: {len(samples)}")
 
-        # 检查数据结构
+        # Check data structure
         if samples:
             first = samples[0]
             logger.info(f"\n  Sample conversation structure:")
@@ -140,7 +140,7 @@ def verify_dataset(file_path: Path) -> bool:
 
 
 def show_sample_conversations(file_path: Path, num_samples: int = 3):
-    """显示几个示例对话"""
+    """Show a few sample conversations"""
     logger.info(f"\n{'='*60}")
     logger.info("Sample Conversations")
     logger.info('='*60)
@@ -156,7 +156,7 @@ def show_sample_conversations(file_path: Path, num_samples: int = 3):
             print(f"\n[Conversation {i+1}: {conv_id}]")
 
             messages = conv.get('conversations', conv.get('messages', []))
-            for j, msg in enumerate(messages[:6]):  # 只显示前6个turns
+            for j, msg in enumerate(messages[:6]):  # Show only the first 6 turns
                 role = msg.get('from', msg.get('role', 'unknown'))
                 content = msg.get('value', msg.get('content', ''))
                 content_preview = content[:100] + '...' if len(content) > 100 else content
@@ -167,7 +167,7 @@ def show_sample_conversations(file_path: Path, num_samples: int = 3):
 
 
 def main():
-    """主函数"""
+    """Main function"""
     import argparse
 
     parser = argparse.ArgumentParser(description='Download and prepare ShareGPT dataset')

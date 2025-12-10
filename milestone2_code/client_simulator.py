@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Client Simulator for Milestone 2 Task 1
-模拟客户端发送请求到vLLM引擎
+Simulates a client sending requests to the vLLM engine
 """
 import json
 import logging
@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Request:
-    """单个请求"""
+    """Single request"""
     request_id: str
     prompt: str
-    response: str  # 来自trace的ground truth
+    response: str  # Ground truth from trace
     arrival_time: float
     conversation_id: str
     turn_index: int
@@ -31,42 +31,42 @@ class Request:
 
 @dataclass
 class RequestResult:
-    """请求的结果"""
+    """Result of a request"""
     request_id: str
     conversation_id: str
     turn_index: int
-    prompt_length: int  # prompt token数
-    response_length: int  # 实际生成的token数
-    hit_blocks: int = 0  # 命中的cache blocks数
-    total_blocks: int = 0  # 总的blocks数
-    hit_rate: float = 0.0  # 该请求的cache命中率
+    prompt_length: int  # Number of prompt tokens
+    response_length: int  # Number of actually generated tokens
+    hit_blocks: int = 0  # Number of hit cache blocks
+    total_blocks: int = 0  # Total number of blocks
+    hit_rate: float = 0.0  # Cache hit rate for this request
     start_time: float = 0.0
     end_time: float = 0.0
-    latency: float = 0.0  # 秒
+    latency: float = 0.0  # Seconds
 
 
 class ClientSimulator:
     """
-    客户端模拟器
+    Client Simulator
 
-    根据project.pdf Task 1要求：
-    - Timing: 使用泊松分布模拟请求到达时间
-    - Chat templates: 正确格式化prompt
+    According to project.pdf Task 1 requirements:
+    - Timing: Use Poisson distribution to simulate request arrival times
+    - Chat templates: Correctly format the prompt
     """
 
     def __init__(
         self,
         trace_path: Path,
         tokenizer,
-        arrival_rate: float = 1.0,  # 平均每秒请求数
-        use_trace_timing: bool = False,  # 是否使用trace中的时间
+        arrival_rate: float = 1.0,  # Average requests per second
+        use_trace_timing: bool = False,  # Whether to use time from trace
     ):
         """
         Args:
-            trace_path: 预处理后的trace文件路径
+            trace_path: Path to the preprocessed trace file
             tokenizer: HuggingFace tokenizer
-            arrival_rate: 泊松分布的lambda参数（请求/秒）
-            use_trace_timing: 如果True且trace有时间戳，使用trace时间
+            arrival_rate: Lambda parameter for Poisson distribution (requests/second)
+            use_trace_timing: If True and trace has timestamps, use trace time
         """
         self.trace_path = trace_path
         self.tokenizer = tokenizer
@@ -78,23 +78,23 @@ class ClientSimulator:
         self._load_trace()
 
     def _load_trace(self):
-        """加载trace文件"""
+        """Load trace file"""
         logger.info(f"Loading trace from {self.trace_path}")
 
         with open(self.trace_path, 'r', encoding='utf-8') as f:
             entries = [json.loads(line) for line in f if line.strip()]
 
-        # 生成请求到达时间
+        # Generate request arrival times
         current_time = 0.0
         for i, entry in enumerate(entries):
-            # 使用泊松过程生成到达时间间隔
+            # Use Poisson process to generate arrival time intervals
             if self.use_trace_timing and 'timestamp' in entry:
                 arrival_time = entry['timestamp']
             elif 'arrival_time' in entry:
-                # 如果trace中包含arrival_time，直接使用
+                # If trace contains arrival_time, use it directly
                 arrival_time = entry['arrival_time']
             else:
-                # 泊松分布：间隔时间服从指数分布
+                # Poisson distribution: intervals follow exponential distribution
                 interval = np.random.exponential(1.0 / self.arrival_rate)
                 current_time += interval
                 arrival_time = current_time
@@ -102,7 +102,7 @@ class ClientSimulator:
             prompt = entry['prompt']
             response = entry['response']
 
-            # Tokenize prompt来计算长度
+            # Tokenize prompt to calculate length
             try:
                 prompt_token_ids = self.tokenizer.encode(prompt, add_special_tokens=True)
             except Exception as e:
@@ -128,11 +128,11 @@ class ClientSimulator:
 
     def send_requests_to_engine(self, engine, params_override: Optional[Dict] = None):
         """
-        将请求发送到vLLM引擎
+        Send requests to the vLLM engine
 
         Args:
-            engine: LLMEngine实例
-            params_override: 覆盖默认的SamplingParams
+            engine: LLMEngine instance
+            params_override: Override default SamplingParams
         """
         from vllm import SamplingParams
 
@@ -141,10 +141,10 @@ class ClientSimulator:
         start_time = time.time()
 
         for req in self.requests:
-            # 构造SamplingParams
+            # Construct SamplingParams
             params_dict = {
                 'max_tokens': req.max_tokens,
-                'temperature': 0.0,  # 确定性生成
+                'temperature': 0.0,  # Deterministic generation
                 'top_p': 1.0,
             }
             if params_override:
@@ -152,14 +152,14 @@ class ClientSimulator:
 
             params = SamplingParams(**params_dict)
 
-            # 添加请求到引擎
+            # Add request to engine
             engine.add_request(
                 request_id=req.request_id,
                 prompt=req.prompt,
                 params=params,
             )
 
-            # 记录开始时间
+            # Record start time
             self.results[req.request_id] = RequestResult(
                 request_id=req.request_id,
                 conversation_id=req.conversation_id,
@@ -173,24 +173,24 @@ class ClientSimulator:
 
     def send_requests_conversation_by_conversation(self, engine, params_override: Optional[Dict] = None, max_steps_per_turn: int = 10000):
         """
-        Conversation-by-conversation processing (改进的选项A)
-        按conversation_id分组，每个conversation内部按turn_index顺序处理
+        Conversation-by-conversation processing (Improved Option A)
+        Group by conversation_id, process sequentially by turn_index within each conversation
 
-        这样确保同一个conversation的后续turns能够复用前面turns的cached blocks
+        This ensures subsequent turns in the same conversation can reuse cached blocks from previous turns
 
         Args:
-            engine: LLMEngine实例
-            params_override: 覆盖默认的SamplingParams
-            max_steps_per_turn: 每个turn的最大步数
+            engine: LLMEngine instance
+            params_override: Override default SamplingParams
+            max_steps_per_turn: Maximum steps per turn
         """
         from vllm import SamplingParams
 
-        # 按conversation_id分组，每个conversation内部按turn_index排序
+        # Group by conversation_id
         conversations = defaultdict(list)
         for req in self.requests:
             conversations[req.conversation_id].append(req)
 
-        # 对每个conversation内部按turn_index排序
+        # Sort by turn_index within each conversation
         for conv_id in conversations:
             conversations[conv_id].sort(key=lambda r: r.turn_index)
 
@@ -199,7 +199,7 @@ class ClientSimulator:
         logger.info("=" * 80)
         logger.info(f"Total conversations: {len(conversations)}")
 
-        # 统计turn分布
+        # Statistics on turn distribution
         turn_distribution = defaultdict(int)
         for conv_id, conv_requests in conversations.items():
             num_turns = len(conv_requests)
@@ -209,7 +209,7 @@ class ClientSimulator:
         for num_turns in sorted(turn_distribution.keys()):
             logger.info(f"  {num_turns} turns: {turn_distribution[num_turns]} conversations")
 
-        # 按conversation顺序处理
+        # Process conversations sequentially
         conv_count = 0
         for conv_id in sorted(conversations.keys()):
             conv_requests = conversations[conv_id]
@@ -218,11 +218,11 @@ class ClientSimulator:
             logger.info("")
             logger.info(f"【Conversation {conv_count}/{len(conversations)}】{conv_id} - {len(conv_requests)} turns")
 
-            # 处理这个conversation的每个turn
+            # Process each turn of this conversation
             for turn_req in conv_requests:
                 logger.info(f"  Turn {turn_req.turn_index}: Processing request {turn_req.request_id}...")
 
-                # 构造SamplingParams
+                # Construct SamplingParams
                 params_dict = {
                     'max_tokens': turn_req.max_tokens,
                     'temperature': 0.0,
@@ -233,7 +233,7 @@ class ClientSimulator:
 
                 params = SamplingParams(**params_dict)
 
-                # 添加请求到引擎
+                # Add request to engine
                 start_time = time.time()
                 engine.add_request(
                     request_id=turn_req.request_id,
@@ -241,7 +241,7 @@ class ClientSimulator:
                     params=params,
                 )
 
-                # 记录开始时间
+                # Record start time
                 self.results[turn_req.request_id] = RequestResult(
                     request_id=turn_req.request_id,
                     conversation_id=turn_req.conversation_id,
@@ -251,12 +251,12 @@ class ClientSimulator:
                     start_time=time.time(),
                 )
 
-                # 运行引擎直到这个turn完成
+                # Run engine until this turn completes
                 step = 0
                 while step < max_steps_per_turn:
                     outputs = engine.step()
 
-                    # 更新结果
+                    # Update results
                     for output in outputs:
                         if output.request_id == turn_req.request_id:
                             result = self.results[turn_req.request_id]
@@ -268,7 +268,7 @@ class ClientSimulator:
                                 logger.info(f"    ✓ Turn {turn_req.turn_index} completed in {step + 1} steps ({result.latency:.2f}s)")
                                 break
 
-                    # 检查这个turn是否完成
+                    # Check if this turn is complete
                     if self.results[turn_req.request_id].end_time > 0:
                         break
 
@@ -284,19 +284,19 @@ class ClientSimulator:
 
     def send_requests_turn_by_turn(self, engine, params_override: Optional[Dict] = None, max_steps_per_turn: int = 10000):
         """
-        Turn-by-turn sequential processing (原始选项A - 按turn_index分组)
+        Turn-by-turn sequential processing (Original Option A - Group by turn_index)
 
-        注意：这个方法适合测试单个conversation，对于多个conversations应使用
+        Note: This method is suitable for testing a single conversation; for multiple conversations use
         send_requests_conversation_by_conversation()
 
         Args:
-            engine: LLMEngine实例
-            params_override: 覆盖默认的SamplingParams
-            max_steps_per_turn: 每个turn的最大步数
+            engine: LLMEngine instance
+            params_override: Override default SamplingParams
+            max_steps_per_turn: Maximum steps per turn
         """
         from vllm import SamplingParams
 
-        # 按turn_index分组
+        # Group by turn_index
         turns_groups = defaultdict(list)
         for req in self.requests:
             turns_groups[req.turn_index].append(req)
@@ -308,17 +308,17 @@ class ClientSimulator:
         for turn_idx in sorted(turns_groups.keys()):
             logger.info(f"  Turn {turn_idx}: {len(turns_groups[turn_idx])} requests")
 
-        # 按turn_index顺序处理
+        # Process sequentially by turn_index
         for turn_idx in sorted(turns_groups.keys()):
             turn_requests = turns_groups[turn_idx]
 
             logger.info("")
             logger.info(f"【Turn {turn_idx}】Processing {len(turn_requests)} requests...")
 
-            # 发送这个turn的所有requests
+            # Send all requests for this turn
             start_time = time.time()
             for req in turn_requests:
-                # 构造SamplingParams
+                # Construct SamplingParams
                 params_dict = {
                     'max_tokens': req.max_tokens,
                     'temperature': 0.0,
@@ -329,14 +329,14 @@ class ClientSimulator:
 
                 params = SamplingParams(**params_dict)
 
-                # 添加请求到引擎
+                # Add request to engine
                 engine.add_request(
                     request_id=req.request_id,
                     prompt=req.prompt,
                     params=params,
                 )
 
-                # 记录开始时间
+                # Record start time
                 self.results[req.request_id] = RequestResult(
                     request_id=req.request_id,
                     conversation_id=req.conversation_id,
@@ -348,7 +348,7 @@ class ClientSimulator:
 
             logger.info(f"  Submitted {len(turn_requests)} requests in {time.time() - start_time:.2f}s")
 
-            # 运行引擎直到这个turn的所有请求完成
+            # Run engine until all requests for this turn complete
             logger.info(f"  Running engine until Turn {turn_idx} completes...")
             step = 0
             turn_request_ids = set(req.request_id for req in turn_requests)
@@ -356,7 +356,7 @@ class ClientSimulator:
             while step < max_steps_per_turn:
                 outputs = engine.step()
 
-                # 更新结果
+                # Update results
                 for output in outputs:
                     if output.request_id in self.results:
                         result = self.results[output.request_id]
@@ -366,7 +366,7 @@ class ClientSimulator:
                             result.end_time = time.time()
                             result.latency = result.end_time - result.start_time
 
-                # 检查这个turn的所有请求是否完成
+                # Check if all requests for this turn are complete
                 turn_completed = all(
                     self.results[req_id].end_time > 0
                     for req_id in turn_request_ids
@@ -378,7 +378,7 @@ class ClientSimulator:
 
                 step += 1
 
-                # 每100步输出进度
+                # Output progress every 100 steps
                 if step % 100 == 0:
                     pending = len([req_id for req_id in turn_request_ids if self.results[req_id].end_time == 0])
                     logger.info(f"    Step {step}: {pending}/{len(turn_request_ids)} requests pending")
@@ -393,11 +393,11 @@ class ClientSimulator:
 
     def run_engine_until_complete(self, engine, max_steps: int = 10000):
         """
-        运行引擎直到所有请求完成
+        Run engine until all requests are complete
 
         Args:
-            engine: LLMEngine实例
-            max_steps: 最大步数
+            engine: LLMEngine instance
+            max_steps: Maximum steps
         """
         logger.info("Running engine until all requests complete...")
 
@@ -405,7 +405,7 @@ class ClientSimulator:
         while step < max_steps:
             outputs = engine.step()
 
-            # 更新结果
+            # Update results
             for output in outputs:
                 if output.request_id in self.results:
                     result = self.results[output.request_id]
@@ -421,7 +421,7 @@ class ClientSimulator:
 
             step += 1
 
-            # 每100步输出进度
+            # Output progress every 100 steps
             if step % 100 == 0:
                 pending = len([r for r in self.results.values() if r.end_time == 0])
                 logger.info(f"  Step {step}: {pending} requests pending")
@@ -431,9 +431,9 @@ class ClientSimulator:
 
     def collect_prefix_cache_stats(self, engine):
         """
-        收集prefix cache统计信息
+        Collect prefix cache statistics
 
-        根据project.pdf Task 2要求收集：
+        Collect according to project.pdf Task 2 requirements:
         - The fraction of each request that benefits from prefix sharing
         - The number of hits per cache block
         - The time gap between reuses of each cache block
@@ -442,7 +442,7 @@ class ClientSimulator:
 
         logger.info("Collecting prefix cache statistics...")
 
-        # 使用我们修正后的hit rate tracker
+        # Use our corrected hit rate tracker
         try:
             from correct_hit_rate_tracker import global_hit_rate_tracker
             tracker_stats = global_hit_rate_tracker.get_stats()
@@ -465,7 +465,7 @@ class ClientSimulator:
                 overall_hit_rate = 0.0
                 tracker_stats = {}
 
-        # 收集cache block统计（Task 2要求）
+        # Collect cache block statistics (Task 2 requirement)
         block_stats = {}
         try:
             from cache_block_tracker import global_cache_block_tracker
@@ -488,10 +488,10 @@ class ClientSimulator:
 
     def generate_report(self, output_path: Optional[Path] = None) -> Dict[str, Any]:
         """
-        生成实验报告
+        Generate experiment report
 
         Returns:
-            统计信息字典
+            Dictionary of statistics
         """
         logger.info("Generating report...")
 
@@ -501,7 +501,7 @@ class ClientSimulator:
             logger.warning("No completed requests to report")
             return {}
 
-        # 基本统计
+        # Basic statistics
         stats = {
             'total_requests': len(self.requests),
             'completed_requests': len(completed_results),
@@ -513,7 +513,7 @@ class ClientSimulator:
             'p99_latency': np.percentile([r.latency for r in completed_results], 99),
         }
 
-        # 按conversation分组统计
+        # Group statistics by conversation
         conv_groups = defaultdict(list)
         for result in completed_results:
             conv_groups[result.conversation_id].append(result)
@@ -521,7 +521,7 @@ class ClientSimulator:
         stats['num_conversations'] = len(conv_groups)
         stats['avg_turns_per_conversation'] = np.mean([len(turns) for turns in conv_groups.values()])
 
-        # 输出报告
+        # Output report
         logger.info("=" * 60)
         logger.info("Experiment Report")
         logger.info("=" * 60)
@@ -537,7 +537,7 @@ class ClientSimulator:
         logger.info(f"P99 latency: {stats['p99_latency']:.3f}s")
         logger.info("=" * 60)
 
-        # 保存到文件
+        # Save to file
         if output_path:
             with open(output_path, 'w') as f:
                 json.dump(stats, f, indent=2)
@@ -547,7 +547,7 @@ class ClientSimulator:
 
 
 def main():
-    """示例用法"""
+    """Example usage"""
     print("""
 Client Simulator for Milestone 2
 
@@ -557,10 +557,10 @@ Usage:
     from vllm.engine.llm_engine import LLMEngine
     from transformers import AutoTokenizer
 
-    # 1. 准备trace
-    # 使用trace_preprocessor.py预处理ShareGPT数据
+    # 1. Prepare trace
+    # Use trace_preprocessor.py to preprocess ShareGPT data
 
-    # 2. 创建simulator
+    # 2. Create simulator
     tokenizer = AutoTokenizer.from_pretrained("exported_models/Llama-3.2-1B-Instruct")
     simulator = ClientSimulator(
         trace_path=Path("milestone2_code/sharegpt_trace.jsonl"),
@@ -568,7 +568,7 @@ Usage:
         arrival_rate=1.0,
     )
 
-    # 3. 创建引擎
+    # 3. Create engine
     args = EngineArgs(
         model="exported_models/Llama-3.2-1B-Instruct",
         tokenizer="exported_models/Llama-3.2-1B-Instruct",
@@ -577,11 +577,11 @@ Usage:
     )
     engine = LLMEngine.from_engine_args(args)
 
-    # 4. 运行实验
+    # 4. Run experiment
     simulator.send_requests_to_engine(engine)
     simulator.run_engine_until_complete(engine)
 
-    # 5. 收集统计
+    # 5. Collect statistics
     simulator.collect_prefix_cache_stats(engine)
     stats = simulator.generate_report()
     """)

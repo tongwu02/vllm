@@ -9,6 +9,7 @@ from vllm.engine.llm_engine import LLMEngine
 from vllm.utils import Device
 
 
+# Fixture to create a temporary JSONL trace file containing mock prompt-response pairs.
 @pytest.fixture()
 def trace_path(tmp_path: Path) -> Path:
     trace_file = tmp_path / "trace.jsonl"
@@ -30,6 +31,7 @@ def trace_path(tmp_path: Path) -> Path:
     return trace_file
 
 
+# Fixture to set the environment variable that tells LLMEngine to use the Simulator executor.
 @pytest.fixture()
 def simulator_env(monkeypatch: pytest.MonkeyPatch, trace_path: Path):
     monkeypatch.setenv("VLLM_SIM_TRACE_PATH", str(trace_path))
@@ -37,6 +39,7 @@ def simulator_env(monkeypatch: pytest.MonkeyPatch, trace_path: Path):
     monkeypatch.delenv("VLLM_SIM_TRACE_PATH", raising=False)
 
 
+# Helper function to initialize the LLMEngine with simulator-friendly settings.
 def _make_engine() -> LLMEngine:
     args = EngineArgs(
         model="exported_models/Llama-3.2-1B-Instruct",
@@ -50,6 +53,7 @@ def _make_engine() -> LLMEngine:
     return LLMEngine.from_engine_args(args)
 
 
+# Helper function to run the engine step-by-step until all requests are finished.
 def _drain_engine(engine: LLMEngine, max_steps: int = 50) -> List:
     outputs: List = []
     for _ in range(max_steps):
@@ -59,12 +63,14 @@ def _drain_engine(engine: LLMEngine, max_steps: int = 50) -> List:
     return outputs
 
 
+# Helper function to extract the final generated text for a specific request ID.
 def _final_text(outputs: List, request_id: str) -> str:
     matches = [o for o in outputs if o.request_id == request_id]
     assert matches, f"No outputs produced for {request_id}"
     return matches[-1].outputs[0].text
 
 
+# Test Case 1: Verify that the simulator correctly replays the response from the trace file.
 def test_simulator_replays_trace_entry(simulator_env):
     engine = _make_engine()
     engine.add_request("hello",
@@ -78,6 +84,7 @@ def test_simulator_replays_trace_entry(simulator_env):
     assert reply == "Hi there!"
 
 
+# Test Case 2: Verify that the simulator can handle multiple concurrent requests.
 def test_simulator_handles_multiple_prompts(simulator_env):
     engine = _make_engine()
     engine.add_request("hello",
@@ -96,6 +103,8 @@ def test_simulator_handles_multiple_prompts(simulator_env):
     assert vllm_text == "vLLM is a fast inference engine."
 
 
+# Test Case 3: Verify that Prefix Caching works by checking hit rates.
+# We use a long common prefix to ensure multiple blocks are filled and shared.
 def test_simulator_reports_prefix_cache_hits(simulator_env):
     engine = _make_engine()
     common_prefix = (
@@ -106,6 +115,7 @@ def test_simulator_reports_prefix_cache_hits(simulator_env):
         "figs, dates, apricots, watermelons. "
         "Please read all items carefully and answer the following query: "
     )
+    # Create distinct prompts that share the long common prefix
     prompt_big1 = common_prefix + "Summarize the nutritional benefits."
     prompt_big2 = common_prefix + "List three items that are high in fiber."
     prompt_big3 = common_prefix + "Which items contain the most vitamin C?"
@@ -114,6 +124,8 @@ def test_simulator_reports_prefix_cache_hits(simulator_env):
     prompt_big6 = common_prefix + "Provide a short story using at least 5 items from the list."
     prompt_big7 = common_prefix + "Explain which items would be suitable for a smoothie recipe."
     prompt_big8 = common_prefix + "Rank the items by estimated sweetness level."
+    
+    # Add requests to the engine
     engine.add_request("prefix-base",
                        prompt="You are a helpful assistant in recognizes the content of tables in markdown format.",
                        params=SamplingParams(max_tokens=4))
@@ -132,11 +144,9 @@ def test_simulator_reports_prefix_cache_hits(simulator_env):
     produced = _drain_engine(engine)
     assert len(produced) >= 2
 
-    # assert _final_text(produced, "prefix-base").strip() == "alpha beta"
-    # assert (_final_text(produced,
-    #                     "prefix-extended").strip() == "alpha beta gamma")
-
+    # Check the hit rate on Device.GPU (The simulator mocks GPU blocks even on CPU)
     hit_rate = engine.scheduler[0].get_prefix_cache_hit_rate(Device.GPU)
     print("hit_rate: ", hit_rate)
     assert hit_rate is not None
+    # Hit rate must be greater than 0 to prove block sharing occurred
     assert 0.0 < hit_rate <= 1.0, f"unexpected hit rate {hit_rate}"
