@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Preprocess CC-Bench: Truncate Mode
-For ultra-long data, do not skip, but force truncate to MAX_ALLOWED_TOKENS.
-This ensures enough samples are retained for testing.
+Preprocess CC-Bench: Correct Multi-Turn Mode
+Generates sequential requests for prefix caching testing by treating the trajectory
+as a growing conversation history.
 """
 
 import argparse
@@ -10,7 +10,7 @@ import json
 import sys
 import logging
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from transformers import AutoTokenizer
 from datasets import load_dataset
 
@@ -20,22 +20,22 @@ logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-# [Config] Truncation length
-# 16384 (16k) is enough to represent "Long Context" workload, and running speed is acceptable
 MAX_ALLOWED_TOKENS = 8000
 MODEL_PATH = str(ROOT_DIR / "exported_models" / "Llama-3.2-1B-Instruct")
 
 
 def parse_args() -> argparse.Namespace:
+    # ... (arguments remain the same)
     parser = argparse.ArgumentParser()
     parser.add_argument("--split", default="train")
     parser.add_argument("--max-samples", type=int, default=500, help="Number of samples to process")
-    parser.add_argument("--output-dir", type=Path, default=ROOT_DIR / "milestone2_code" / "traces")
+    parser.add_argument("--output-dir", type=Path, default=ROOT_DIR / "experiment_code" / "traces")
     parser.add_argument("--output-filename", type=str, default="ccbench_multi_turn.jsonl")
     return parser.parse_args()
 
 
 def iter_ccbench_samples(split: str, limit: Optional[int]):
+    # ... (dataset loading remains the same)
     try:
         dataset = load_dataset("zai-org/CC-Bench-trajectories", split=split, streaming=True)
         count = 0
@@ -48,49 +48,79 @@ def iter_ccbench_samples(split: str, limit: Optional[int]):
         print(f"Error loading dataset: {e}")
 
 
-def make_entry(sample: Dict, tokenizer) -> Dict:
+def process_sample_into_turns(sample: Dict, tokenizer) -> List[Dict]:
+    """
+    Transforms one CC-Bench sample into a list of sequential, multi-turn entries.
+    Each entry reuses the messages from the previous entry as its prefix.
+    """
     sample_id = str(sample.get("id"))
     task_category = sample.get("task_category", "unknown")
-
-    # 1. Extract text
-    traj = sample.get("trajectory", "")
-    if isinstance(traj, (dict, list)):
-        prompt_text = json.dumps(traj, ensure_ascii=False)
-    else:
-        prompt_text = str(traj)
-
-    # 2. Encode and Truncate
-    # add_special_tokens=False to avoid duplicate BOS
-    token_ids = tokenizer.encode(prompt_text, add_special_tokens=False)
-
-    original_len = len(token_ids)
-    is_truncated = False
-
-    if original_len > MAX_ALLOWED_TOKENS:
-        # Force truncate to the first MAX_ALLOWED_TOKENS tokens
-        token_ids = token_ids[:MAX_ALLOWED_TOKENS]
-        # Decode back to string to ensure the truncation point is a valid character boundary
-        prompt_text = tokenizer.decode(token_ids)
-        is_truncated = True
-
-    # 3. Construct Messages
-    messages = [
-        {"role": "system", "content": "You are a helpful coding assistant."},
-        {"role": "user", "content": prompt_text}
+    
+    # The 'trajectory' is typically a structured list that needs parsing
+    traj_data = sample.get("trajectory", [])
+    if isinstance(traj_data, str):
+        try:
+            traj_data = json.loads(traj_data)
+        except json.JSONDecodeError:
+            # If it's not JSON, we cannot properly segment it. Skip this sample.
+            return []
+            
+    if not isinstance(traj_data, list):
+        # Data format is unexpected, skip.
+        return []
+    
+    entries = []
+    # Start the conversation with the system prompt
+    current_messages = [
+        {"role": "system", "content": "You are a helpful coding assistant."}
     ]
-
-    entry = {
-        "conversation_id": f"ccbench-{sample_id}",
-        "workload": f"ccbench/{task_category}",
-        "messages": messages,
-        "meta": {
-            "dataset": "CC-Bench",
-            "orig_len": original_len,
-            "truncated": is_truncated,
-            "final_len": len(token_ids)
+    
+    # Iterate through the steps of the trajectory
+    for i, step in enumerate(traj_data):
+        # 1. Extract the current turn's message
+        # Based on your file snippet, the message is nested inside a 'message' key
+        message_data = step.get('message', {})
+        role = message_data.get('role', 'user')
+        content = message_data.get('content', '')
+        
+        if not content: continue # Skip empty steps
+        
+        # 2. Add the new message to the history
+        new_message = {"role": role, "content": content}
+        current_messages.append(new_message)
+        
+        # 3. Check for truncation before generating the entry
+        # Apply the chat template to the current history to get the full prompt text
+        full_prompt_text = tokenizer.apply_chat_template(current_messages, tokenize=False)
+        token_ids = tokenizer.encode(full_prompt_text, add_special_tokens=False)
+        
+        if len(token_ids) > MAX_ALLOWED_TOKENS:
+            # The current message makes the context too long. Stop the conversation here.
+            break
+            
+        # 4. Create the JSONL entry for the current turn
+        # This entry contains the full conversation history up to this point (the prefix)
+        entry = {
+            # Each turn must have a unique ID for the simulator to treat it as a new request
+            "conversation_id": f"ccbench-{sample_id}", 
+            "turn_index": i + 1, # Indexing is critical for tracking turns
+            "workload": f"ccbench/{task_category}",
+            "messages": current_messages.copy(), # MUST copy the list for isolation
+            "meta": {
+                "dataset": "CC-Bench",
+                "final_len": len(token_ids),
+                "turn": i + 1
+            }
         }
-    }
-    return entry, original_len, is_truncated
+        entries.append(entry)
+        
+        # 5. After a 'user' message, insert a dummy 'assistant' response to complete the loop
+        # This makes the history reusable for the *next* user query.
+        if role == 'user' and (i + 1) < len(traj_data):
+             # A simple placeholder response that will be part of the next prefix
+             current_messages.append({"role": "assistant", "content": "Acknowledged."})
+             
+    return entries
 
 
 def main() -> None:
@@ -101,36 +131,37 @@ def main() -> None:
     print(f"Loading tokenizer from: {MODEL_PATH}")
     try:
         tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-        # [Critical] Set to a very large value to prevent warnings during encode
         tokenizer.model_max_length = 1_000_000_000
     except:
         tokenizer = AutoTokenizer.from_pretrained("gpt2")
         tokenizer.model_max_length = 1_000_000_000
 
-    print(f"Processing CC-Bench... (Truncating to {MAX_ALLOWED_TOKENS} tokens)")
+    print(f"Processing CC-Bench... (Max length {MAX_ALLOWED_TOKENS} tokens)")
 
-    processed_count = 0
-    truncated_count = 0
+    processed_conv_count = 0
+    generated_turn_count = 0
 
     with output_path.open("w", encoding="utf-8") as f_out:
         for sample in iter_ccbench_samples(args.split, args.max_samples):
-            entry, orig_len, is_truncated = make_entry(sample, tokenizer)
+            # NEW: Process one sample into multiple turn entries
+            entries = process_sample_into_turns(sample, tokenizer)
+            
+            if entries:
+                processed_conv_count += 1
+                
+                # Write all turns for this sample to the file
+                for entry in entries:
+                    f_out.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                    generated_turn_count += 1
+                
+                # Print progress (using the turn count)
+                print(f"   Conversation {sample.get('id'):<3}: Generated {len(entries)} turns.")
 
-            f_out.write(json.dumps(entry, ensure_ascii=False) + "\n")
-
-            processed_count += 1
-            if is_truncated:
-                truncated_count += 1
-
-            # Print progress
-            status = f"[Truncated {orig_len} -> {MAX_ALLOWED_TOKENS}]" if is_truncated else f"[Kept {orig_len}]"
-            print(f"   Sample {sample.get('id')}: {status}")
 
     print("=" * 60)
     print(f"Done. File saved to: {output_path}")
-    print(f"Total Processed: {processed_count}")
-    print(f"Truncated: {truncated_count} (Raw length > {MAX_ALLOWED_TOKENS})")
-    print(f"Kept Original: {processed_count - truncated_count}")
+    print(f"Total Conversations Processed: {processed_conv_count}")
+    print(f"Total Turns Generated: {generated_turn_count}")
     print("=" * 60)
 
 

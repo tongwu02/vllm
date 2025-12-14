@@ -20,7 +20,7 @@ from transformers import AutoTokenizer
 try:
     # Assuming these modules are available in your execution environment
     from correct_hit_rate_tracker import global_hit_rate_tracker
-    from milestone2_code.client_simulator import ClientSimulator
+    from experiment_code.client_simulator import ClientSimulator
 except ImportError:
     # Placeholder classes/objects if custom modules are not available
     class GlobalHitRateTracker:

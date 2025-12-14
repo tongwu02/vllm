@@ -26,7 +26,7 @@ from transformers import AutoTokenizer
 try:
     from correct_hit_rate_tracker import global_hit_rate_tracker
     from cache_block_tracker import global_cache_block_tracker
-    from milestone2_code.client_simulator import ClientSimulator
+    from experiment_code.client_simulator import ClientSimulator
 except ImportError as e:
     print(f"❌ Import Error: {e}")
     sys.exit(1)
@@ -37,8 +37,8 @@ TRACE_DIR = Path(__file__).parent / "traces"
 
 # Dataset path configuration
 DATASETS = {
-    "ShareGPT": TRACE_DIR / "sharegpt_multi_turn.jsonl",
-    "AgentBank": TRACE_DIR / "agentbank_multi_turn.jsonl",
+   "ShareGPT": TRACE_DIR / "sharegpt_multi_turn.jsonl",
+   "AgentBank": TRACE_DIR / "agentbank_multi_turn.jsonl",
     "CC": TRACE_DIR / "ccbench_multi_turn.jsonl"
 }
 
