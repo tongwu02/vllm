@@ -274,16 +274,17 @@ class ProtectedLRUEvictor(Evictor):
     Enforces a strict limit on how much space 'One-hit Wonders' (Noise) can occupy.
     """
     
-    # 设定试用区最大占比 (例如 20%)
-    # 这意味着 80% 的显存是专门留给 Shared Prompt 等回头客的
+    # Maximum ratio allowed for the probation segment (e.g., 20%)
+    # This ensures that the remaining 80% of memory is reserved for
+    # frequently reused blocks such as shared prompts.
     PROBATION_RATIO = 0.20 
 
     def __init__(self):
-        # 1. 试用区 (Noise 集中营)
+        # 1. Probation segment (where one-hit wonders / noise accumulate)
         self.probation_table: Dict[int, BlockMetaData] = {}
         self.probation_queue = [] 
 
-        # 2. 保护区 (VIP 俱乐部)
+        # 2. Protected segment (VIP area for frequently reused blocks)
         self.protected_table: Dict[int, BlockMetaData] = {}
         self.protected_queue = [] 
 
@@ -292,15 +293,15 @@ class ProtectedLRUEvictor(Evictor):
 
     def add(self, block_id: int, content_hash: int, num_hashed_tokens: int,
             last_accessed: float):
-        """新来的 Block 只能进试用区"""
+        """New blocks always enter the probation segment."""
         meta = BlockMetaData(content_hash, num_hashed_tokens, last_accessed)
         self.probation_table[block_id] = meta
         heapq.heappush(self.probation_queue, (last_accessed, block_id, content_hash))
 
     def update(self, block_id: int, last_accessed: float):
-        """复用发生了！立刻晋升！"""
+        """A reuse is detected — immediately promote the block."""
         
-        # A. 在试用区 -> 晋升到保护区
+        # A. From probation segment -> promote to protected segment
         if block_id in self.probation_table:
             meta = self.probation_table.pop(block_id)
             meta.last_accessed = last_accessed
@@ -308,7 +309,7 @@ class ProtectedLRUEvictor(Evictor):
             self.protected_table[block_id] = meta
             heapq.heappush(self.protected_queue, (last_accessed, block_id, meta.content_hash))
             
-        # B. 已经在保护区 -> 更新时间
+        # B. Already in protected segment -> update access time
         elif block_id in self.protected_table:
             meta = self.protected_table[block_id]
             meta.last_accessed = last_accessed
@@ -316,8 +317,9 @@ class ProtectedLRUEvictor(Evictor):
 
     def evict(self) -> Tuple[int, int]:
         """
-        屠杀逻辑 (关键修改)：
-        我们根据当前各区的占用情况，决定杀谁。
+        Eviction logic (core design):
+        The victim is selected based on the current occupancy
+        of each segment.
         """
         total_blocks = len(self.probation_table) + len(self.protected_table)
         if total_blocks == 0:
@@ -325,9 +327,12 @@ class ProtectedLRUEvictor(Evictor):
 
         probation_size = len(self.probation_table)
         
-        # === 核心逻辑 ===
-        # 如果试用区占用的空间超过了限制 (20%)，或者保护区是空的，
-        # 就必须杀试用区的人。这保证了 Noise 永远无法挤占 >20% 的空间。
+        # === Core policy ===
+        # If the probation segment exceeds its allowed ratio (e.g., 20%),
+        # or if the protected segment is empty,
+        # we must evict from the probation segment.
+        # This guarantees that noise blocks can never occupy
+        # more than the configured fraction of cache space.
         should_evict_probation = (probation_size > total_blocks * self.PROBATION_RATIO) or (not self.protected_table)
 
         if should_evict_probation and self.probation_table:
@@ -335,13 +340,15 @@ class ProtectedLRUEvictor(Evictor):
             if block_id is not None:
                 return block_id, content_hash
 
-        # 否则 (试用区很空，或者是保护区满了)，才动保护区
+        # Otherwise (probation is under-utilized or protected is full),
+        # evict from the protected segment.
         if self.protected_table:
             block_id, content_hash = self._pop_valid_lru(self.protected_queue, self.protected_table)
             if block_id is not None:
                 return block_id, content_hash
         
-        # 兜底：如果上面都没返回 (极罕见情况)，再试一次试用区
+        # Fallback: if nothing was evicted above (very rare),
+        # retry eviction from the probation segment.
         if self.probation_table:
              block_id, content_hash = self._pop_valid_lru(self.probation_queue, self.probation_table)
              if block_id is not None:
@@ -369,7 +376,7 @@ class ProtectedLRUEvictor(Evictor):
                     return block_id, meta.content_hash
         return None, 0
 
-# 3. 修改 Factory
+# 3. Update factory
 def make_evictor(eviction_policy: EvictionPolicy) -> Evictor:
     if eviction_policy == EvictionPolicy.LRU:
         return LRUEvictor()
@@ -377,7 +384,7 @@ def make_evictor(eviction_policy: EvictionPolicy) -> Evictor:
         return LFUEvictor()
     elif eviction_policy == EvictionPolicy.FIFO:
         return FIFOEvictor()
-    elif eviction_policy == EvictionPolicy.PROTECTED_LRU: # <--- 注册
+    elif eviction_policy == EvictionPolicy.PROTECTED_LRU: # <--- register
         return ProtectedLRUEvictor()
     else:
         raise ValueError(f"Unknown cache eviction policy: {eviction_policy}")
