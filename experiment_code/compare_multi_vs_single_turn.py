@@ -120,7 +120,7 @@ def run_experiment(trace_path, experiment_name, use_conversation_mode=False):
     engine = LLMEngine.from_engine_args(args)
 
     # Create simulator
-    from milestone2_code.client_simulator import ClientSimulator
+    from experiment_code.client_simulator import ClientSimulator
     simulator = ClientSimulator(
         trace_path=trace_path,
         tokenizer=tokenizer,
